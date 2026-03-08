@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Global Dispatcher Voice Game</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <h1>Global Dispatcher Voice Game</h1>
+      <p>Dispatcher monitors the map. Victim survives 3 obstacle rounds. Mission completes when both goals are done.</p>
+    </header>
+
+    <section class="setup card">
+      <label>
+        Name
+        <input id="nameInput" type="text" maxlength="24" placeholder="Your name" value="Player" />
+      </label>
+      <label>
+        Role
+        <select id="roleInput">
+          <option value="dispatcher">Dispatcher</option>
+          <option value="victim">Victim</option>
+        </select>
+      </label>
+      <label>
+        Room Code
+        <input id="roomInput" type="text" maxlength="24" placeholder="example: city-247" value="city-247" />
+      </label>
+      <button id="startBtn" type="button">Start / Join Session</button>
+    </section>
+
+    <section class="status card">
+      <div id="connectionStatus">Disconnected</div>
+      <div id="playerStatus">Role: -</div>
+      <div id="voiceStatus">Voice: Off</div>
+      <div id="roundStatus">Round: Waiting</div>
+      <div id="panicStatus" class="panicStatus">Panic: 40</div>
+      <div id="missionStatus">Mission: Victim 0/3 | Dispatch 0/3</div>
+      <button id="muteBtn" type="button" disabled>Mute Mic</button>
+      <button id="voiceNotesBtn" type="button" disabled>Start Voice Notes</button>
+      <button id="reportBtn" type="button" disabled>After-Action Report</button>
+      <button id="endBtn" type="button" disabled>Leave Room</button>
+    </section>
+
+    <section class="board">
+      <article class="panel dispatcher card" id="dispatcherPanel">
+        <h2>Dispatcher Console</h2>
+        <p class="muted">Monitor live map, send support, and mark assistance progress.</p>
+
+        <div class="controlGroup">
+          <h3>Incident Level</h3>
+          <div class="buttonRow" id="severityButtons"></div>
+        </div>
+
+        <div class="controlGroup">
+          <h3>Support (cooldown)</h3>
+          <div class="buttonRow" id="supportButtons"></div>
+        </div>
+
+        <div class="controlGroup">
+          <h3>Dispatcher Mini Map</h3>
+          <canvas id="dispatcherMap" width="380" height="220"></canvas>
+          <div id="mapLegend" class="muted">Map: waiting for victim updates</div>
+          <button id="markAssistBtn" type="button">Mark Assist Complete (+1)</button>
+        </div>
+      </article>
+
+      <article class="panel chat card">
+        <h2>Live Feed</h2>
+        <div id="feed" class="feed"></div>
+        <label>
+          Shared Text Message
+          <input id="chatInput" type="text" maxlength="220" placeholder="Type and send to the other player..." />
+        </label>
+        <button id="sendChat" type="button">Send Message</button>
+
+        <div class="controlGroup">
+          <h3>Voice Transcript Snippets</h3>
+          <div id="transcriptFeed" class="transcriptFeed"></div>
+        </div>
+      </article>
+
+      <article class="panel victim card" id="victimPanel">
+        <h2>Victim Survival Mini-Game</h2>
+        <p class="muted">Avoid red obstacles. Survive 3 rounds.</p>
+
+        <div id="gameHud" class="gameHud">Round 1 | Time 0.0s</div>
+        <canvas id="victimGame" width="420" height="240"></canvas>
+
+        <div class="controlGroup">
+          <h3>Location Cards</h3>
+          <div id="locationButtons" class="buttonRow"></div>
+        </div>
+
+        <div class="controlGroup">
+          <h3>Suggested Responses</h3>
+          <div id="responseHints" class="transcriptFeed"></div>
+        </div>
+      </article>
+    </section>
+
+    <section id="reportPanel" class="card hidden">
+      <h2>After-Action Report</h2>
+      <pre id="reportText" class="reportText"></pre>
+    </section>
+
+    <audio id="remoteAudio" autoplay></audio>
+  </main>
+
+  <script src="./game.js"></script>
+</body>
+</html>
