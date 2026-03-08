@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Global Dispatcher Voice Game</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <h1>Global Dispatcher Voice Game</h1>
+      <p>One player is the dispatcher. One player is the victim. Join the same room code.</p>
+    </header>
+
+    <section class="setup card">
+      <label>
+        Name
+        <input id="nameInput" type="text" maxlength="24" placeholder="Your name" value="Player" />
+      </label>
+      <label>
+        Role
+        <select id="roleInput">
+          <option value="dispatcher">Dispatcher</option>
+          <option value="victim">Victim</option>
+        </select>
+      </label>
+      <label>
+        Room Code
+        <input id="roomInput" type="text" maxlength="24" placeholder="example: city-247" value="city-247" />
+      </label>
+      <button id="startBtn" type="button">Start / Join Session</button>
+    </section>
+
+    <section class="status card">
+      <div id="connectionStatus">Disconnected</div>
+      <div id="playerStatus">Role: -</div>
+      <div id="voiceStatus">Voice: Off</div>
+      <div id="roundStatus">Round: Waiting</div>
+      <button id="muteBtn" type="button" disabled>Mute Mic</button>
+      <button id="endBtn" type="button" disabled>Leave Room</button>
+    </section>
+
+    <section class="board">
+      <article class="panel dispatcher card" id="dispatcherPanel">
+        <h2>Dispatcher Console</h2>
+        <p class="muted">Create pressure, deploy help, and guide the victim to safety.</p>
+
+        <div class="controlGroup">
+          <h3>Incident Level</h3>
+          <div class="buttonRow" id="severityButtons"></div>
+        </div>
+
+        <div class="controlGroup">
+          <h3>Actions</h3>
+          <div class="buttonRow" id="actionButtons"></div>
+        </div>
+
+        <div class="controlGroup">
+          <h3>Support</h3>
+          <div class="buttonRow" id="supportButtons"></div>
+        </div>
+
+        <div class="controlGroup">
+          <h3>Dispatcher Message</h3>
+          <textarea id="dispatcherText" rows="3" placeholder="Type a custom command for the victim..."></textarea>
+          <button id="sendDispatcherText" type="button">Send Command</button>
+        </div>
+      </article>
+
+      <article class="panel chat card">
+        <h2>Live Feed</h2>
+        <div id="feed" class="feed"></div>
+        <label>
+          Shared Text Message
+          <input id="chatInput" type="text" maxlength="220" placeholder="Type and send to the other player..." />
+        </label>
+        <button id="sendChat" type="button">Send Message</button>
+      </article>
+
+      <article class="panel victim card" id="victimPanel">
+        <h2>Victim Idea Book (1000)</h2>
+        <p class="muted">Pick lines to speak or send. Use search to find the right tone quickly.</p>
+        <label>
+          Search Ideas
+          <input id="ideaSearch" type="text" placeholder="Search by keyword..." />
+        </label>
+        <div id="ideaCount" class="ideaCount"></div>
+        <div id="ideaBook" class="ideaBook"></div>
+      </article>
+    </section>
+
+    <audio id="remoteAudio" autoplay></audio>
+  </main>
+
+  <script src="./game.js"></script>
+</body>
+</html>
