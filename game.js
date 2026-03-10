@@ -250,11 +250,6 @@ function openMiniModal() {
 }
 
 function closeMiniModal() {
-  miniModalActive = false;
-  miniModal.classList.add("hidden");
-  miniModal.setAttribute("aria-hidden", "true");
-  mini.active = false;
-  scheduleMiniPopup();
 }
 
 function randomHazards(level) {
