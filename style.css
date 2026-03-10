@@ -94,6 +94,28 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   background: linear-gradient(90deg, #19314a, #3d1d2b);
 }
 
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 16, 0.86);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+
+.modalCard {
+  width: min(90vw, 620px);
+  background: linear-gradient(180deg, #111b2f, #0f1a2a);
+  border: 1px solid #2e456a;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+
+.modalCard h3 {
+  margin: 0 0 6px;
+}
+
 .reportText {
   margin: 0;
   white-space: pre-wrap;

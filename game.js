@@ -37,6 +37,7 @@ const dispatcherMap = $("dispatcherMap");
 const mapLegend = $("mapLegend");
 const mapCtx = dispatcherMap.getContext("2d");
 
+const miniModal = $("miniModal");
 const victimGame = $("victimGame");
 const gameHud = $("gameHud");
 const gameCtx = victimGame.getContext("2d");
@@ -54,6 +55,8 @@ let recognition = null;
 let connectTimer = null;
 let emergencyTimer = null;
 let emergencyAudioCtx = null;
+let miniPopupTimer = null;
+let miniModalActive = false;
 
 let myName = "Player";
 let myRole = "dispatcher";
@@ -123,6 +126,7 @@ function updateMissionStatus() {
     roundStatus.textContent = "Mission Complete";
     logFeed("Mission", "System", "Mission complete. Both sides reached 3 objectives.");
     sendPayload({ kind: "mission-complete" });
+    stopMiniSchedule();
   }
 }
 
@@ -217,6 +221,39 @@ function configureRoleUI() {
   victimPanel.classList.toggle("hidden", isDispatcher);
   markAssistBtn.disabled = !isDispatcher;
   roundStatus.textContent = isDispatcher ? "Round: Dispatching" : "Round: Survival";
+}
+
+function stopMiniSchedule() {
+  if (miniPopupTimer) {
+    clearTimeout(miniPopupTimer);
+    miniPopupTimer = null;
+  }
+}
+
+function scheduleMiniPopup() {
+  stopMiniSchedule();
+  if (myRole !== "victim" || mission.victimWins >= 3 || missionCompleteAnnounced) return;
+  const delay = 30000 + Math.random() * 30000;
+  miniPopupTimer = setTimeout(() => {
+    openMiniModal();
+  }, delay);
+}
+
+function openMiniModal() {
+  if (myRole !== "victim" || mission.victimWins >= 3 || missionCompleteAnnounced) return;
+  miniModalActive = true;
+  miniModal.classList.remove("hidden");
+  miniModal.setAttribute("aria-hidden", "false");
+  const nextRound = Math.min(3, mission.victimWins + 1);
+  resetMiniRound(nextRound);
+}
+
+function closeMiniModal() {
+  miniModalActive = false;
+  miniModal.classList.add("hidden");
+  miniModal.setAttribute("aria-hidden", "true");
+  mini.active = false;
+  scheduleMiniPopup();
 }
 
 function randomHazards(level) {
@@ -327,9 +364,9 @@ function handleMiniFail() {
   gameHud.textContent = `Round ${mini.round} failed. Mic down...`;
   setPanicLevel(panicLevel + 20, "Collision");
   forceVictimMicDown();
+  closeMiniModal();
   setTimeout(() => {
     recoverVictimMic();
-    resetMiniRound(mini.round);
   }, 7000);
 }
 
@@ -339,15 +376,14 @@ function handleMiniWin() {
   sendPayload({ kind: "victim-round-win", value: mission.victimWins });
   updateMissionStatus();
   gameHud.textContent = `Round ${mini.round} complete.`;
-  if (mission.victimWins < 3) {
-    setTimeout(() => resetMiniRound(mini.round + 1), 1700);
-  } else {
+  closeMiniModal();
+  if (mission.victimWins >= 3) {
     gameHud.textContent = "Victim objective complete (3/3).";
   }
 }
 
 function updateMini(dt) {
-  if (myRole !== "victim" || !mini.active || mission.victimWins >= 3) return;
+  if (myRole !== "victim" || !mini.active || !miniModalActive || mission.victimWins >= 3) return;
 
   const up = keys.has("w") || keys.has("arrowup");
   const down = keys.has("s") || keys.has("arrowdown");
@@ -413,14 +449,6 @@ function drawMini() {
   gameCtx.fillStyle = "#79d8ff";
   gameCtx.arc(mini.player.x, mini.player.y, mini.player.r, 0, Math.PI * 2);
   gameCtx.fill();
-
-  if (myRole !== "victim") {
-    gameCtx.fillStyle = "rgba(0,0,0,0.5)";
-    gameCtx.fillRect(0, 0, w, h);
-    gameCtx.fillStyle = "#dbe9ff";
-    gameCtx.font = "600 18px Segoe UI";
-    gameCtx.fillText("Victim View Only", 130, 128);
-  }
 }
 
 function setupDispatcherControls() {
@@ -618,6 +646,7 @@ function bindDataConnection(conn) {
       roundStatus.textContent = "Mission Complete";
       logFeed("Mission", "Peer", "Mission complete confirmed.");
       missionCompleteAnnounced = true;
+      stopMiniSchedule();
       return;
     }
 
@@ -701,6 +730,9 @@ function showReport() {
 function teardown() {
   clearConnectLoop();
   stopEmergencyBeep();
+  stopMiniSchedule();
+  miniModalActive = false;
+  miniModal.classList.add("hidden");
 
   if (voiceNotesActive && recognition) {
     voiceNotesActive = false;
@@ -754,7 +786,11 @@ async function joinSession() {
   configureRoleUI();
   renderResponseHints(["Wait for dispatch support to see auto suggestions."]);
   randomHazards(1);
-  resetMiniRound(1);
+
+  mini.active = false;
+  miniModalActive = false;
+  miniModal.classList.add("hidden");
+  scheduleMiniPopup();
 
   try {
     await setupVoice();

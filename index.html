@@ -86,10 +86,7 @@
 
       <article class="panel victim card" id="victimPanel">
         <h2>Victim Survival Mini-Game</h2>
-        <p class="muted">Avoid red obstacles. Survive 3 rounds.</p>
-
-        <div id="gameHud" class="gameHud">Round 1 | Time 0.0s</div>
-        <canvas id="victimGame" width="420" height="240"></canvas>
+        <p class="muted">The mini-game pops up every 30 to 60 seconds and must be finished or failed.</p>
 
         <div class="controlGroup">
           <h3>Location Cards</h3>
@@ -107,6 +104,15 @@
       <h2>After-Action Report</h2>
       <pre id="reportText" class="reportText"></pre>
     </section>
+
+    <div id="miniModal" class="modalOverlay hidden" aria-hidden="true">
+      <div class="modalCard">
+        <h3>Survival Window</h3>
+        <p class="muted">You cannot exit until you finish or fail this round.</p>
+        <div id="gameHud" class="gameHud">Round 1 | Time 0.0s</div>
+        <canvas id="victimGame" width="520" height="300"></canvas>
+      </div>
+    </div>
 
     <audio id="remoteAudio" autoplay></audio>
   </main>
