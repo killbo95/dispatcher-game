@@ -57,6 +57,7 @@ let emergencyTimer = null;
 let emergencyAudioCtx = null;
 let miniPopupTimer = null;
 let miniModalActive = false;
+let voiceActivityStarted = false;
 
 let myName = "Player";
 let myRole = "dispatcher";
@@ -237,6 +238,12 @@ function scheduleMiniPopup() {
   miniPopupTimer = setTimeout(() => {
     openMiniModal();
   }, delay);
+}
+
+function markVoiceActivityStarted() {
+  if (voiceActivityStarted) return;
+  voiceActivityStarted = true;
+  scheduleMiniPopup();
 }
 
 function openMiniModal() {
@@ -536,6 +543,7 @@ function setupVoiceNotes() {
       if (!ev.results[i].isFinal) continue;
       const text = ev.results[i][0].transcript.trim();
       if (!text) continue;
+      markVoiceActivityStarted();
       logTranscript(myName, text);
       logFeed("Voice Note", myName, text);
       sendPayload({ kind: "transcript", text });
@@ -780,6 +788,7 @@ async function joinSession() {
   mission.victimWins = 0;
   mission.dispatcherAssists = 0;
   missionCompleteAnnounced = false;
+  voiceActivityStarted = false;
   updateMissionStatus();
   setPanicLevel(40);
 
@@ -790,7 +799,7 @@ async function joinSession() {
   mini.active = false;
   miniModalActive = false;
   miniModal.classList.add("hidden");
-  scheduleMiniPopup();
+  stopMiniSchedule();
 
   try {
     await setupVoice();
@@ -836,6 +845,9 @@ muteBtn.addEventListener("click", () => {
   localStream.getAudioTracks().forEach((track) => { track.enabled = !isMuted; });
   muteBtn.textContent = isMuted ? "Unmute Mic" : "Mute Mic";
   setStatus();
+  if (!isMuted && !recognition) {
+    markVoiceActivityStarted();
+  }
 });
 
 sendChat.addEventListener("click", () => {
