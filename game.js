@@ -57,7 +57,6 @@ let emergencyTimer = null;
 let emergencyAudioCtx = null;
 let miniPopupTimer = null;
 let miniModalActive = false;
-let voiceActivityStarted = false;
 
 let myName = "Player";
 let myRole = "dispatcher";
@@ -232,19 +231,14 @@ function stopMiniSchedule() {
 }
 
 function scheduleMiniPopup() {
-  stopMiniSchedule();
+  scheduleMiniPopup();
   if (myRole !== "victim" || mission.victimWins >= 3 || missionCompleteAnnounced) return;
-  const delay = 30000 + Math.random() * 30000;
+  const delay = 30000;
   miniPopupTimer = setTimeout(() => {
     openMiniModal();
   }, delay);
 }
 
-function markVoiceActivityStarted() {
-  if (voiceActivityStarted) return;
-  voiceActivityStarted = true;
-  scheduleMiniPopup();
-}
 
 function openMiniModal() {
   if (myRole !== "victim" || mission.victimWins >= 3 || missionCompleteAnnounced) return;
@@ -543,8 +537,7 @@ function setupVoiceNotes() {
       if (!ev.results[i].isFinal) continue;
       const text = ev.results[i][0].transcript.trim();
       if (!text) continue;
-      markVoiceActivityStarted();
-      logTranscript(myName, text);
+            logTranscript(myName, text);
       logFeed("Voice Note", myName, text);
       sendPayload({ kind: "transcript", text });
     }
@@ -654,7 +647,7 @@ function bindDataConnection(conn) {
       roundStatus.textContent = "Mission Complete";
       logFeed("Mission", "Peer", "Mission complete confirmed.");
       missionCompleteAnnounced = true;
-      stopMiniSchedule();
+      scheduleMiniPopup();
       return;
     }
 
@@ -738,7 +731,7 @@ function showReport() {
 function teardown() {
   clearConnectLoop();
   stopEmergencyBeep();
-  stopMiniSchedule();
+  scheduleMiniPopup();
   miniModalActive = false;
   miniModal.classList.add("hidden");
 
@@ -788,8 +781,7 @@ async function joinSession() {
   mission.victimWins = 0;
   mission.dispatcherAssists = 0;
   missionCompleteAnnounced = false;
-  voiceActivityStarted = false;
-  updateMissionStatus();
+    updateMissionStatus();
   setPanicLevel(40);
 
   configureRoleUI();
@@ -799,7 +791,7 @@ async function joinSession() {
   mini.active = false;
   miniModalActive = false;
   miniModal.classList.add("hidden");
-  stopMiniSchedule();
+  scheduleMiniPopup();
 
   try {
     await setupVoice();
@@ -846,8 +838,7 @@ muteBtn.addEventListener("click", () => {
   muteBtn.textContent = isMuted ? "Unmute Mic" : "Mute Mic";
   setStatus();
   if (!isMuted && !recognition) {
-    markVoiceActivityStarted();
-  }
+      }
 });
 
 sendChat.addEventListener("click", () => {
