@@ -231,14 +231,13 @@ function stopMiniSchedule() {
 }
 
 function scheduleMiniPopup() {
-  scheduleMiniPopup();
+  stopMiniSchedule();
   if (myRole !== "victim" || mission.victimWins >= 3 || missionCompleteAnnounced) return;
   const delay = 30000;
   miniPopupTimer = setTimeout(() => {
     openMiniModal();
   }, delay);
 }
-
 
 function openMiniModal() {
   if (myRole !== "victim" || mission.victimWins >= 3 || missionCompleteAnnounced) return;
@@ -250,8 +249,12 @@ function openMiniModal() {
 }
 
 function closeMiniModal() {
+  miniModalActive = false;
+  miniModal.classList.add("hidden");
+  miniModal.setAttribute("aria-hidden", "true");
+  mini.active = false;
+  scheduleMiniPopup();
 }
-
 function randomHazards(level) {
   const n = Math.min(10, 2 + level);
   mapState.hazards = Array.from({ length: n }, () => ({ x: Math.random(), y: Math.random() }));
