@@ -37,6 +37,7 @@ const dispatcherMap = $("dispatcherMap");
 const mapLegend = $("mapLegend");
 const mapCtx = dispatcherMap.getContext("2d");
 
+const miniModal = $("miniModal");
 const victimGame = $("victimGame");
 const gameHud = $("gameHud");
 const gameCtx = victimGame.getContext("2d");
@@ -54,6 +55,7 @@ let recognition = null;
 let connectTimer = null;
 let emergencyTimer = null;
 let emergencyAudioCtx = null;
+let miniInterval = null;
 
 let myName = "Player";
 let myRole = "dispatcher";
@@ -71,6 +73,8 @@ const mission = {
 };
 
 const timeline = [];
+
+const MINI_INTERVAL_MS = 45000;
 
 const severities = ["Level 1 Calm", "Level 2 Alert", "Level 3 Critical", "Level 4 Extreme", "Level 5 Collapse"];
 const supportActions = [
@@ -123,6 +127,7 @@ function updateMissionStatus() {
     roundStatus.textContent = "Mission Complete";
     logFeed("Mission", "System", "Mission complete. Both sides reached 3 objectives.");
     sendPayload({ kind: "mission-complete" });
+    stopMiniSchedule();
   }
 }
 
@@ -219,26 +224,25 @@ function configureRoleUI() {
   roundStatus.textContent = isDispatcher ? "Round: Dispatching" : "Round: Survival";
 }
 
-<<<<<<< ours
 function stopMiniSchedule() {
-  if (miniPopupTimer) {
-    clearTimeout(miniPopupTimer);
-    miniPopupTimer = null;
+  if (miniInterval) {
+    clearInterval(miniInterval);
+    miniInterval = null;
   }
 }
 
-function scheduleMiniPopup() {
+function startMiniSchedule() {
   stopMiniSchedule();
-  if (myRole !== "victim" || mission.victimWins >= 3 || missionCompleteAnnounced) return;
-  const delay = 30000;
-  miniPopupTimer = setTimeout(() => {
-    openMiniModal();
-  }, delay);
+  if (myRole !== "victim" || missionCompleteAnnounced) return;
+  miniInterval = setInterval(() => {
+    if (myRole !== "victim" || mission.victimWins >= 3 || missionCompleteAnnounced) return;
+    if (!mini.active) openMiniModal();
+  }, MINI_INTERVAL_MS);
 }
 
 function openMiniModal() {
   if (myRole !== "victim" || mission.victimWins >= 3 || missionCompleteAnnounced) return;
-  miniModalActive = true;
+  mini.active = true;
   miniModal.classList.remove("hidden");
   miniModal.setAttribute("aria-hidden", "false");
   const nextRound = Math.min(3, mission.victimWins + 1);
@@ -246,14 +250,11 @@ function openMiniModal() {
 }
 
 function closeMiniModal() {
-  miniModalActive = false;
+  mini.active = false;
   miniModal.classList.add("hidden");
   miniModal.setAttribute("aria-hidden", "true");
-  mini.active = false;
-  scheduleMiniPopup();
 }
-=======
->>>>>>> theirs
+
 function randomHazards(level) {
   const n = Math.min(10, 2 + level);
   mapState.hazards = Array.from({ length: n }, () => ({ x: Math.random(), y: Math.random() }));
@@ -362,10 +363,10 @@ function handleMiniFail() {
   gameHud.textContent = `Round ${mini.round} failed. Mic down...`;
   setPanicLevel(panicLevel + 20, "Collision");
   forceVictimMicDown();
+  closeMiniModal();
   setTimeout(() => {
     recoverVictimMic();
-    resetMiniRound(mini.round);
-  }, 7000);
+  }, 6500);
 }
 
 function handleMiniWin() {
@@ -374,9 +375,8 @@ function handleMiniWin() {
   sendPayload({ kind: "victim-round-win", value: mission.victimWins });
   updateMissionStatus();
   gameHud.textContent = `Round ${mini.round} complete.`;
-  if (mission.victimWins < 3) {
-    setTimeout(() => resetMiniRound(mini.round + 1), 1700);
-  } else {
+  closeMiniModal();
+  if (mission.victimWins >= 3) {
     gameHud.textContent = "Victim objective complete (3/3).";
   }
 }
@@ -448,14 +448,6 @@ function drawMini() {
   gameCtx.fillStyle = "#79d8ff";
   gameCtx.arc(mini.player.x, mini.player.y, mini.player.r, 0, Math.PI * 2);
   gameCtx.fill();
-
-  if (myRole !== "victim") {
-    gameCtx.fillStyle = "rgba(0,0,0,0.5)";
-    gameCtx.fillRect(0, 0, w, h);
-    gameCtx.fillStyle = "#dbe9ff";
-    gameCtx.font = "600 18px Segoe UI";
-    gameCtx.fillText("Victim View Only", 130, 128);
-  }
 }
 
 function setupDispatcherControls() {
@@ -543,7 +535,7 @@ function setupVoiceNotes() {
       if (!ev.results[i].isFinal) continue;
       const text = ev.results[i][0].transcript.trim();
       if (!text) continue;
-            logTranscript(myName, text);
+      logTranscript(myName, text);
       logFeed("Voice Note", myName, text);
       sendPayload({ kind: "transcript", text });
     }
@@ -653,10 +645,7 @@ function bindDataConnection(conn) {
       roundStatus.textContent = "Mission Complete";
       logFeed("Mission", "Peer", "Mission complete confirmed.");
       missionCompleteAnnounced = true;
-<<<<<<< ours
-      scheduleMiniPopup();
-=======
->>>>>>> theirs
+      stopMiniSchedule();
       return;
     }
 
@@ -740,12 +729,9 @@ function showReport() {
 function teardown() {
   clearConnectLoop();
   stopEmergencyBeep();
-<<<<<<< ours
-  scheduleMiniPopup();
-  miniModalActive = false;
+  stopMiniSchedule();
+  mini.active = false;
   miniModal.classList.add("hidden");
-=======
->>>>>>> theirs
 
   if (voiceNotesActive && recognition) {
     voiceNotesActive = false;
@@ -793,13 +779,16 @@ async function joinSession() {
   mission.victimWins = 0;
   mission.dispatcherAssists = 0;
   missionCompleteAnnounced = false;
-    updateMissionStatus();
+  updateMissionStatus();
   setPanicLevel(40);
 
   configureRoleUI();
   renderResponseHints(["Wait for dispatch support to see auto suggestions."]);
   randomHazards(1);
-  resetMiniRound(1);
+
+  mini.active = false;
+  miniModal.classList.add("hidden");
+  startMiniSchedule();
 
   try {
     await setupVoice();
@@ -845,8 +834,6 @@ muteBtn.addEventListener("click", () => {
   localStream.getAudioTracks().forEach((track) => { track.enabled = !isMuted; });
   muteBtn.textContent = isMuted ? "Unmute Mic" : "Mute Mic";
   setStatus();
-  if (!isMuted && !recognition) {
-      }
 });
 
 sendChat.addEventListener("click", () => {

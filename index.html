@@ -3,15 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Global Dispatcher Voice Game</title>
+  <title>Dispatcher Ops: Dual Survival</title>
   <link rel="stylesheet" href="./style.css" />
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
   <main class="app">
     <header class="topbar">
-      <h1>Global Dispatcher Voice Game</h1>
-      <p>Dispatcher monitors the map. Victim survives 3 obstacle rounds. Mission completes when both goals are done.</p>
+      <div>
+        <h1>Dispatcher Ops</h1>
+        <p>Two roles. One mission. Clear 3 assists and 3 survival rounds.</p>
+      </div>
+      <div class="badge">Live Drill</div>
     </header>
 
     <section class="setup card">
@@ -46,10 +49,10 @@
       <button id="endBtn" type="button" disabled>Leave Room</button>
     </section>
 
-    <section class="board">
+    <section class="grid">
       <article class="panel dispatcher card" id="dispatcherPanel">
         <h2>Dispatcher Console</h2>
-        <p class="muted">Monitor live map, send support, and mark assistance progress.</p>
+        <p class="muted">Manage severity, dispatch support, and track the victim on the map.</p>
 
         <div class="controlGroup">
           <h3>Incident Level</h3>
@@ -69,8 +72,8 @@
         </div>
       </article>
 
-      <article class="panel chat card">
-        <h2>Live Feed</h2>
+      <article class="panel ops card">
+        <h2>Operations Feed</h2>
         <div id="feed" class="feed"></div>
         <label>
           Shared Text Message
@@ -85,8 +88,8 @@
       </article>
 
       <article class="panel victim card" id="victimPanel">
-        <h2>Victim Survival Mini-Game</h2>
-        <p class="muted">The mini-game pops up every 30 to 60 seconds and must be finished or failed.</p>
+        <h2>Victim Toolkit</h2>
+        <p class="muted">The survival mini-game pops up on a schedule. Hold steady.</p>
 
         <div class="controlGroup">
           <h3>Location Cards</h3>
@@ -107,7 +110,10 @@
 
     <div id="miniModal" class="modalOverlay hidden" aria-hidden="true">
       <div class="modalCard">
-        <h3>Survival Window</h3>
+        <div class="modalHeader">
+          <h3>Survival Window</h3>
+          <span class="pill">Locked</span>
+        </div>
         <p class="muted">You cannot exit until you finish or fail this round.</p>
         <div id="gameHud" class="gameHud">Round 1 | Time 0.0s</div>
         <canvas id="victimGame" width="520" height="300"></canvas>
