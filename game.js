@@ -9,6 +9,7 @@ const endBtn = $("endBtn");
 const voiceNotesBtn = $("voiceNotesBtn");
 const reportBtn = $("reportBtn");
 const markAssistBtn = $("markAssistBtn");
+const forceMiniBtn = $("forceMiniBtn");
 
 const connectionStatus = $("connectionStatus");
 const playerStatus = $("playerStatus");
@@ -221,6 +222,7 @@ function configureRoleUI() {
   dispatcherPanel.classList.toggle("hidden", !isDispatcher);
   victimPanel.classList.toggle("hidden", isDispatcher);
   markAssistBtn.disabled = !isDispatcher;
+  forceMiniBtn.disabled = !isDispatcher;
   roundStatus.textContent = isDispatcher ? "Round: Dispatching" : "Round: Survival";
 }
 
@@ -501,6 +503,12 @@ function setupDispatcherControls() {
     logFeed("Mission", myName, "Dispatch assist marked complete.");
     updateMissionStatus();
   });
+
+  forceMiniBtn.addEventListener("click", () => {
+    if (myRole !== "dispatcher") return;
+    logFeed("Dispatch", myName, "Forced victim mini-game.");
+    sendPayload({ kind: "force-mini" });
+  });
 }
 
 function setupLocationCards() {
@@ -646,6 +654,14 @@ function bindDataConnection(conn) {
       logFeed("Mission", "Peer", "Mission complete confirmed.");
       missionCompleteAnnounced = true;
       stopMiniSchedule();
+      return;
+    }
+
+    if (payload.kind === "force-mini") {
+      if (myRole === "victim") {
+        logFeed("Dispatch", "Peer", "Mini-game forced.");
+        openMiniModal();
+      }
       return;
     }
 
