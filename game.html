@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dispatcher Ops: Dual Survival</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <h1>Dispatcher Ops</h1>
+        <p>Two roles. One mission. Clear 3 assists and 3 survival rounds.</p>
+      </div>
+      <div class="badge">Live Drill</div>
+    </header>
+
+    <section id="lobbyPanel" class="setup card hidden">
+      <div class="lobbyTitle">
+        <button id="backMenuBtn" class="smallButton" type="button">← Back</button>
+        <h2 id="lobbyPanelTitle">Room</h2>
+        <p id="lobbyPanelHint" class="muted"></p>
+      </div>
+      <label>
+        Name
+        <input id="nameInput" type="text" maxlength="24" placeholder="Your name" value="Player" />
+      </label>
+      <label>
+        Role
+        <select id="roleInput">
+          <option value="dispatcher">Dispatcher</option>
+          <option value="victim">Victim</option>
+        </select>
+      </label>
+      <label>
+        Room Code
+        <input id="roomInput" type="text" maxlength="24" placeholder="e.g. CITY-247" />
+      </label>
+      <div class="lobbyButtons">
+        <button id="createRoomBtn" type="button">Create Room</button>
+        <button id="joinRoomBtn" type="button">Join Room</button>
+      </div>
+      <div id="lobbyStatus" class="lobbyStatus">Lobby: Not connected</div>
+    </section>
+
+    <section class="status card">
+      <div id="connectionStatus">Disconnected</div>
+      <div id="playerStatus">Role: -</div>
+      <div id="voiceStatus">Voice: Off</div>
+      <div id="roundStatus">Round: Waiting</div>
+      <div id="panicStatus" class="panicStatus">Panic: 40</div>
+      <div id="missionStatus">Mission: Victim 0/3 | Dispatch 0/3</div>
+      <button id="muteBtn" type="button" disabled>Mute Mic</button>
+      <button id="forceMiniBtn" type="button" disabled>Force Victim Mini-Game</button>
+      <button id="voiceNotesBtn" type="button" disabled>Start Voice Notes</button>
+      <button id="reportBtn" type="button" disabled>After-Action Report</button>
+      <button id="endBtn" type="button" disabled>Leave Room</button>
+    </section>
+
+    <section class="grid">
+      <article class="panel dispatcher card" id="dispatcherPanel">
+        <h2>Dispatcher Console</h2>
+        <p class="muted">Manage severity, dispatch support, and track the victim on the map.</p>
+
+        <div class="controlGroup">
+          <h3>Incident Level</h3>
+          <div class="buttonRow" id="severityButtons"></div>
+        </div>
+
+        <div class="controlGroup">
+          <h3>Support (cooldown)</h3>
+          <div class="buttonRow" id="supportButtons"></div>
+        </div>
+
+        <div class="controlGroup">
+          <h3>Dispatcher Mini Map</h3>
+          <canvas id="dispatcherMap" width="380" height="220"></canvas>
+          <div id="mapLegend" class="muted">Map: waiting for victim updates</div>
+          <button id="markAssistBtn" type="button">Mark Assist Complete (+1)</button>
+        </div>
+      </article>
+
+      <article class="panel ops card">
+        <h2>Operations Feed</h2>
+        <div id="feed" class="feed"></div>
+        <label>
+          Shared Text Message
+          <input id="chatInput" type="text" maxlength="220" placeholder="Type and send to the other player..." />
+        </label>
+        <button id="sendChat" type="button">Send Message</button>
+
+        <div class="controlGroup">
+          <h3>Voice Transcript Snippets</h3>
+          <div id="transcriptFeed" class="transcriptFeed"></div>
+        </div>
+      </article>
+
+      <article class="panel victim card" id="victimPanel">
+        <h2>Victim Toolkit</h2>
+        <p class="muted">The survival mini-game pops up on a schedule. Hold steady.</p>
+
+        <div class="controlGroup">
+          <h3>Location Cards</h3>
+          <div id="locationButtons" class="buttonRow"></div>
+        </div>
+
+        <div class="controlGroup">
+          <h3>Suggested Responses</h3>
+          <div id="responseHints" class="transcriptFeed"></div>
+        </div>
+      </article>
+    </section>
+
+    <section id="reportPanel" class="card hidden">
+      <h2>After-Action Report</h2>
+      <pre id="reportText" class="reportText"></pre>
+    </section>
+
+    <div id="miniModal" class="modalOverlay hidden" aria-hidden="true">
+      <div class="modalCard">
+        <div class="modalHeader">
+          <h3>Survival Window</h3>
+          <span class="pill">Locked</span>
+        </div>
+        <p class="muted">You cannot exit until you finish or fail this round.</p>
+        <div id="gameHud" class="gameHud">Round 1 | Time 0.0s</div>
+        <canvas id="victimGame" width="520" height="300"></canvas>
+      </div>
+    </div>
+
+    <audio id="remoteAudio" autoplay></audio>
+  </main>
+
+  <script src="./game.js"></script>
+</body>
+</html>
