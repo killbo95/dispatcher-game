@@ -216,3 +216,13 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 .openLobbyList { width:100%; margin-top:auto; padding-top:8px; font-size:.85rem; }
 .smallButton { width:auto; padding:6px 10px; margin-bottom:8px; }
 @media (max-width:700px) { .menuGrid { grid-template-columns:1fr; } .menuTile { min-height:160px; } .menuHeader { align-items:flex-start; } }
+
+.menuLink { text-decoration:none; color:inherit; }
+.standaloneMenu { min-height:70vh; display:flex; flex-direction:column; justify-content:center; }
+.standalonePage { width:min(760px,94vw); margin:12vh auto; padding:34px; }
+.standalonePage h1 { font-size:2rem; margin:8px 0; }
+.pageBack { display:inline-block; text-decoration:none; }
+.pageAction { display:inline-block; margin-top:22px; width:auto; padding:12px 18px; border-radius:9px; border:1px solid #3a4f74; background:#0f1828; color:var(--ink); text-decoration:none; font-weight:700; }
+.pageAction:hover { border-color:var(--accent); background:#112238; }
+.emptyLobby { display:grid; gap:6px; margin-top:20px; padding:18px; border:1px dashed #35507a; border-radius:10px; background:#0b1422; }
+.emptyLobby span { color:var(--muted); }
