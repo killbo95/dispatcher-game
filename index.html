@@ -18,6 +18,10 @@
     </header>
 
     <section class="setup card">
+      <div class="lobbyTitle">
+        <h2>Game Lobby</h2>
+        <p class="muted">Create a room and share the code, or enter a code to join someone else's room.</p>
+      </div>
       <label>
         Name
         <input id="nameInput" type="text" maxlength="24" placeholder="Your name" value="Player" />
@@ -31,9 +35,13 @@
       </label>
       <label>
         Room Code
-        <input id="roomInput" type="text" maxlength="24" placeholder="example: city-247" value="city-247" />
+        <input id="roomInput" type="text" maxlength="24" placeholder="e.g. CITY-247" />
       </label>
-      <button id="startBtn" type="button">Start / Join Session</button>
+      <div class="lobbyButtons">
+        <button id="createRoomBtn" type="button">Create Room</button>
+        <button id="joinRoomBtn" type="button">Join Room</button>
+      </div>
+      <div id="lobbyStatus" class="lobbyStatus">Lobby: Not connected</div>
     </section>
 
     <section class="status card">
