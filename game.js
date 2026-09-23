@@ -174,7 +174,7 @@ function escapeHtml(str) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
+    .replace(/\\/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
 
@@ -801,13 +801,14 @@ function showMainMenu() {
   if (mainMenu) mainMenu.classList.remove("hidden");
   if (lobbyPanel) lobbyPanel.classList.add("hidden");
 }
+
 function showLobbyPanel(mode) {
   if (mainMenu) mainMenu.classList.add("hidden");
   lobbyPanel.classList.remove("hidden");
   const create = mode === "create";
   const browse = mode === "browse";
   lobbyPanelTitle.textContent = create ? "Create a Room" : browse ? "Available Lobbies" : "Join a Room";
-  lobbyPanelHint.textContent = create ? "Choose your name and role, then create a room." : browse ? "Public lobby discovery will be connected to the room service next." : "Enter the room code shared by the host.";
+  lobbyPanelHint.textContent = create ? "Choose your name and role, then create a room." : browse ? "Public lobby discovery needs a room registry service." : "Enter the room code shared by the host.";
   createRoomBtn.style.display = create ? "" : "none";
   joinRoomBtn.style.display = create || browse ? "none" : "";
   nameInput.parentElement.style.display = browse ? "none" : "";
@@ -816,9 +817,12 @@ function showLobbyPanel(mode) {
   if (create && !roomInput.value) roomInput.value = makeRoomCode();
   roomInput.readOnly = create;
 }
+
 function renderOpenLobbies() {
+  if (!openLobbyList) return;
   openLobbyList.innerHTML = '<span class="muted">No public lobbies yet.</span>';
 }
+
 function setLobbyStatus(text, tone = "normal") {
   lobbyStatus.textContent = `Lobby: ${text}`;
   lobbyStatus.style.color = tone === "error" ? "var(--danger)" : tone === "success" ? "#7ee2ad" : "var(--accent)";
@@ -1002,6 +1006,31 @@ async function joinRoom() {
   });
 }
 
+function openInitialMode() {
+  const params = new URLSearchParams(window.location.search);
+  const mode = params.get("mode");
+
+  if (mode === "create" || mode === "join" || mode === "browse" || mode === "solo") {
+    showLobbyPanel(mode);
+  } else {
+    showLobbyPanel("join");
+  }
+
+  if (mode === "solo") {
+    lobbyPanelTitle.textContent = "Solo Mode";
+    lobbyPanelHint.textContent = "AI caller mode is the next step. Multiplayer remains available from the main menu.";
+    createRoomBtn.style.display = "none";
+    joinRoomBtn.style.display = "none";
+    nameInput.parentElement.style.display = "none";
+    roleInput.parentElement.style.display = "none";
+    roomInput.parentElement.style.display = "none";
+    setLobbyStatus("AI caller integration is not connected yet.");
+  }
+
+  if (mode === "browse") {
+    setLobbyStatus("No public lobbies yet. Public discovery needs a room registry service.");
+  }
+}
 
 window.addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
@@ -1010,22 +1039,12 @@ window.addEventListener("keydown", (e) => {
 });
 window.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
 
-createTile.addEventListener("click", () => showLobbyPanel("create"));
-joinTile.addEventListener("click", () => showLobbyPanel("join"));
-browseTile.addEventListener("click", () => showLobbyPanel("browse"));
-soloTile.addEventListener("click", () => {
-  mainMenu.classList.add("hidden");
-  lobbyPanel.classList.add("hidden");
-  setLobbyStatus("Solo mode will connect to the AI caller here.");
-  logFeed("System", "Solo", "Solo AI mode selected. AI caller integration is next.");
-});
-backMenuBtn.addEventListener("click", showMainMenu);
-renderOpenLobbies();
 createRoomBtn.addEventListener("click", createRoom);
 joinRoomBtn.addEventListener("click", joinRoom);
 endBtn.addEventListener("click", () => { showReport(); teardown(); });
 reportBtn.addEventListener("click", showReport);
 voiceNotesBtn.addEventListener("click", toggleVoiceNotes);
+backMenuBtn.addEventListener("click", () => { window.location.href = "./index.html"; });
 
 muteBtn.addEventListener("click", () => {
   if (!localStream) return;
@@ -1065,5 +1084,6 @@ renderResponseHints(["Wait for dispatch support to see auto suggestions."]);
 updateMissionStatus();
 setPanicLevel(40);
 setStatus();
-logFeed("System", "Game", "Pick role + room code, then press Start / Join Session.");
+logFeed("System", "Game", "Choose your role and room code, then create or join the room.");
 requestAnimationFrame(loop);
+openInitialMode();
