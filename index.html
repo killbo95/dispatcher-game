@@ -17,10 +17,41 @@
       <div class="badge">Live Drill</div>
     </header>
 
-    <section class="setup card">
+    <section id="mainMenu" class="mainMenu">
+      <div class="menuHeader">
+        <div>
+          <div class="menuKicker">DISPATCHER OPS</div>
+          <h2>Choose your operation</h2>
+          <p class="muted">Create a room, join a team, browse open lobbies, or play solo with an AI caller.</p>
+        </div>
+        <div class="badge">LIVE DRILL</div>
+      </div>
+      <div class="menuGrid">
+        <button class="menuTile" id="createTile" type="button">
+          <span class="tileIcon">＋</span><strong>Create Room</strong>
+          <span>Create a private lobby and share its code.</span>
+        </button>
+        <button class="menuTile" id="joinTile" type="button">
+          <span class="tileIcon">→</span><strong>Join Room</strong>
+          <span>Enter a room code and join a friend.</span>
+        </button>
+        <button class="menuTile" id="browseTile" type="button">
+          <span class="tileIcon">◉</span><strong>Available Lobbies</strong>
+          <span>See public rooms that are ready to join.</span>
+          <div id="openLobbyList" class="openLobbyList"><span class="muted">No public lobbies yet.</span></div>
+        </button>
+        <button class="menuTile soloTile" id="soloTile" type="button">
+          <span class="tileIcon">AI</span><strong>Solo Mode</strong>
+          <span>Play alone against the AI caller.</span>
+        </button>
+      </div>
+    </section>
+
+    <section id="lobbyPanel" class="setup card hidden">
       <div class="lobbyTitle">
-        <h2>Game Lobby</h2>
-        <p class="muted">Create a room and share the code, or enter a code to join someone else's room.</p>
+        <button id="backMenuBtn" class="smallButton" type="button">← Back</button>
+        <h2 id="lobbyPanelTitle">Room</h2>
+        <p id="lobbyPanelHint" class="muted"></p>
       </div>
       <label>
         Name
