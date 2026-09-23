@@ -798,11 +798,11 @@ function teardown() {
 }
 
 function showMainMenu() {
-  mainMenu.classList.remove("hidden");
-  lobbyPanel.classList.add("hidden");
+  if (mainMenu) mainMenu.classList.remove("hidden");
+  if (lobbyPanel) lobbyPanel.classList.add("hidden");
 }
 function showLobbyPanel(mode) {
-  mainMenu.classList.add("hidden");
+  if (mainMenu) mainMenu.classList.add("hidden");
   lobbyPanel.classList.remove("hidden");
   const create = mode === "create";
   const browse = mode === "browse";
