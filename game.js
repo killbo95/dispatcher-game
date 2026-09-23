@@ -3,6 +3,16 @@ const $ = (id) => document.getElementById(id);
 const nameInput = $("nameInput");
 const roleInput = $("roleInput");
 const roomInput = $("roomInput");
+const mainMenu = $("mainMenu");
+const lobbyPanel = $("lobbyPanel");
+const createTile = $("createTile");
+const joinTile = $("joinTile");
+const browseTile = $("browseTile");
+const soloTile = $("soloTile");
+const backMenuBtn = $("backMenuBtn");
+const openLobbyList = $("openLobbyList");
+const lobbyPanelTitle = $("lobbyPanelTitle");
+const lobbyPanelHint = $("lobbyPanelHint");
 const createRoomBtn = $("createRoomBtn");
 const joinRoomBtn = $("joinRoomBtn");
 const lobbyStatus = $("lobbyStatus");
@@ -787,6 +797,28 @@ function teardown() {
   setLobbyStatus("Not connected");
 }
 
+function showMainMenu() {
+  mainMenu.classList.remove("hidden");
+  lobbyPanel.classList.add("hidden");
+}
+function showLobbyPanel(mode) {
+  mainMenu.classList.add("hidden");
+  lobbyPanel.classList.remove("hidden");
+  const create = mode === "create";
+  const browse = mode === "browse";
+  lobbyPanelTitle.textContent = create ? "Create a Room" : browse ? "Available Lobbies" : "Join a Room";
+  lobbyPanelHint.textContent = create ? "Choose your name and role, then create a room." : browse ? "Public lobby discovery will be connected to the room service next." : "Enter the room code shared by the host.";
+  createRoomBtn.style.display = create ? "" : "none";
+  joinRoomBtn.style.display = create || browse ? "none" : "";
+  nameInput.parentElement.style.display = browse ? "none" : "";
+  roleInput.parentElement.style.display = browse ? "none" : "";
+  roomInput.parentElement.style.display = browse ? "none" : "";
+  if (create && !roomInput.value) roomInput.value = makeRoomCode();
+  roomInput.readOnly = create;
+}
+function renderOpenLobbies() {
+  openLobbyList.innerHTML = '<span class="muted">No public lobbies yet.</span>';
+}
 function setLobbyStatus(text, tone = "normal") {
   lobbyStatus.textContent = `Lobby: ${text}`;
   lobbyStatus.style.color = tone === "error" ? "var(--danger)" : tone === "success" ? "#7ee2ad" : "var(--accent)";
@@ -978,6 +1010,17 @@ window.addEventListener("keydown", (e) => {
 });
 window.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
 
+createTile.addEventListener("click", () => showLobbyPanel("create"));
+joinTile.addEventListener("click", () => showLobbyPanel("join"));
+browseTile.addEventListener("click", () => showLobbyPanel("browse"));
+soloTile.addEventListener("click", () => {
+  mainMenu.classList.add("hidden");
+  lobbyPanel.classList.add("hidden");
+  setLobbyStatus("Solo mode will connect to the AI caller here.");
+  logFeed("System", "Solo", "Solo AI mode selected. AI caller integration is next.");
+});
+backMenuBtn.addEventListener("click", showMainMenu);
+renderOpenLobbies();
 createRoomBtn.addEventListener("click", createRoom);
 joinRoomBtn.addEventListener("click", joinRoom);
 endBtn.addEventListener("click", () => { showReport(); teardown(); });
