@@ -1,1 +1,101 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Create Room — Dispatcher Ops</title><link rel="stylesheet" href="./style.css"></head><body><main class="app"><section class="card standalonePage"><a class="smallButton pageBack" href="./index.html">← Main Menu</a><div class="menuKicker">DISPATCHER OPS</div><h1>Create a Room</h1><p class="muted">Set up your player and room, then launch the multiplayer lobby.</p><a class="pageAction" href="./game.html?mode=create">Continue to Room Setup</a></section></main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Room — Dispatcher Ops</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="app">
+    <section class="card standalonePage">
+      <a class="smallButton pageBack" href="./index.html">← Main Menu</a>
+      <div class="menuKicker">DISPATCHER OPS</div>
+      <h1>Create a Room</h1>
+      <p class="muted">Create your multiplayer room from this page.</p>
+
+      <div class="roomSetupCard">
+        <label>
+          Your Name
+          <input id="createName" type="text" maxlength="24" placeholder="Your name" value="Player">
+        </label>
+
+        <label>
+          Your Role
+          <select id="createRole">
+            <option value="dispatcher">Dispatcher</option>
+            <option value="victim">Victim</option>
+          </select>
+        </label>
+
+        <label>
+          Room Code
+          <input id="createRoomCode" type="text" maxlength="24" placeholder="CITY-247">
+        </label>
+
+        <button id="createRoomButton" class="pageAction" type="button">Create Room</button>
+        <div id="createRoomStatus" class="lobbyStatus">Ready to create a room.</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script>
+    const nameInput = document.getElementById("createName");
+    const roleInput = document.getElementById("createRole");
+    const roomInput = document.getElementById("createRoomCode");
+    const button = document.getElementById("createRoomButton");
+    const status = document.getElementById("createRoomStatus");
+
+    function makeRoomCode() {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let code = "";
+      for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+      return "ROOM-" + code;
+    }
+
+    roomInput.value = makeRoomCode();
+
+    button.addEventListener("click", () => {
+      const name = nameInput.value.trim() || "Player";
+      const role = roleInput.value;
+      const roomCode = roomInput.value.trim().toUpperCase();
+
+      if (!roomCode) {
+        status.textContent = "Enter a room code first.";
+        return;
+      }
+
+      button.disabled = true;
+      status.textContent = "Creating room...";
+
+      const peerId = "dispatcher-lobby-" + roomCode;
+
+      try {
+        const peer = new Peer(peerId, { host: "0.peerjs.com", secure: true, port: 443 });
+
+        peer.on("open", () => {
+          sessionStorage.setItem("dispatcherName", name);
+          sessionStorage.setItem("dispatcherRole", role);
+          sessionStorage.setItem("dispatcherRoom", roomCode);
+          sessionStorage.setItem("dispatcherCreated", "true");
+          status.textContent = "Room created. Opening the game...";
+          window.location.href = "./game.html?mode=create&room=" + encodeURIComponent(roomCode);
+        });
+
+        peer.on("error", (error) => {
+          button.disabled = false;
+          if (error && error.type === "unavailable-id") {
+            status.textContent = "That room code is already in use. Generate a new code and try again.";
+          } else {
+            status.textContent = "Could not create the room. Please try again.";
+          }
+        });
+      } catch (error) {
+        button.disabled = false;
+        status.textContent = "Could not start the room service.";
+      }
+    });
+  </script>
+</body>
+</html>
