@@ -3,7 +3,9 @@ const $ = (id) => document.getElementById(id);
 const nameInput = $("nameInput");
 const roleInput = $("roleInput");
 const roomInput = $("roomInput");
-const startBtn = $("startBtn");
+const createRoomBtn = $("createRoomBtn");
+const joinRoomBtn = $("joinRoomBtn");
+const lobbyStatus = $("lobbyStatus");
 const muteBtn = $("muteBtn");
 const endBtn = $("endBtn");
 const voiceNotesBtn = $("voiceNotesBtn");
@@ -47,6 +49,9 @@ const remoteAudio = $("remoteAudio");
 
 let peer = null;
 let dataConn = null;
+let lobbyPeer = null;
+let lobbyConn = null;
+let lobbyMode = null;
 let mediaCall = null;
 let localStream = null;
 let remoteStream = null;
@@ -758,6 +763,7 @@ function teardown() {
   if (mediaCall) mediaCall.close();
   if (dataConn) dataConn.close();
   if (peer) peer.destroy();
+  closeLobby();
 
   if (localStream) localStream.getTracks().forEach((t) => t.stop());
 
@@ -772,49 +778,43 @@ function teardown() {
   endBtn.disabled = true;
   reportBtn.disabled = true;
   voiceNotesBtn.disabled = true;
-  startBtn.disabled = false;
+  resetLobbyButtons();
+  roomInput.disabled = false;
+  roleInput.disabled = false;
+  nameInput.disabled = false;
   connectionStatus.textContent = "Disconnected";
   voiceStatus.textContent = "Voice: Off";
+  setLobbyStatus("Not connected");
 }
 
-async function joinSession() {
-  myName = (nameInput.value || "Player").trim().slice(0, 24) || "Player";
-  myRole = roleInput.value;
-  roomCode = sanitizeRoom(roomInput.value);
-  if (!roomCode) return;
+function setLobbyStatus(text, tone = "normal") {
+  lobbyStatus.textContent = `Lobby: ${text}`;
+  lobbyStatus.style.color = tone === "error" ? "var(--danger)" : tone === "success" ? "#7ee2ad" : "var(--accent)";
+}
 
+function makeRoomCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 6; i += 1) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function resetLobbyButtons() {
+  createRoomBtn.disabled = false;
+  joinRoomBtn.disabled = false;
+}
+
+function closeLobby() {
+  if (lobbyConn) { try { lobbyConn.close(); } catch {} }
+  if (lobbyPeer) { try { lobbyPeer.destroy(); } catch {} }
+  lobbyConn = null;
+  lobbyPeer = null;
+  lobbyMode = null;
+}
+
+function launchGamePeer() {
   localPeerId = `${roomCode}-${myRole}`;
   remotePeerId = `${roomCode}-${myRole === "dispatcher" ? "victim" : "dispatcher"}`;
-
-  startBtn.disabled = true;
-  muteBtn.disabled = false;
-  endBtn.disabled = false;
-  reportBtn.disabled = false;
-  voiceNotesBtn.disabled = false;
-
-  mission.victimWins = 0;
-  mission.dispatcherAssists = 0;
-  missionCompleteAnnounced = false;
-  updateMissionStatus();
-  setPanicLevel(40);
-
-  configureRoleUI();
-  renderResponseHints(["Wait for dispatch support to see auto suggestions."]);
-  randomHazards(1);
-
-  mini.active = false;
-  miniModal.classList.add("hidden");
-  startMiniSchedule();
-
-  try {
-    await setupVoice();
-  } catch {
-    startBtn.disabled = false;
-    muteBtn.disabled = true;
-    endBtn.disabled = true;
-    return;
-  }
-
   peer = new Peer(localPeerId, { host: "0.peerjs.com", secure: true, port: 443, debug: 1 });
 
   peer.on("open", (id) => {
@@ -823,14 +823,153 @@ async function joinSession() {
     startConnectLoop();
   });
 
-  peer.on("connection", bindDataConnection);
+  peer.on("error", (err) => {
+    logFeed("System", "Lobby", `Game connection error: ${err.message || "unknown error"}`);
+    setLobbyStatus("Game connection failed. Check the room code and try again.", "error");
+    teardown();
+  });
 
+  peer.on("connection", bindDataConnection);
   peer.on("call", (incomingCall) => {
     mediaCall = incomingCall;
     incomingCall.answer(localStream);
     attachCallHandlers(incomingCall);
   });
 }
+
+async function prepareGame() {
+  myName = (nameInput.value || "Player").trim().slice(0, 24) || "Player";
+  myRole = roleInput.value;
+  roomCode = sanitizeRoom(roomInput.value).toUpperCase();
+
+  if (!roomCode) {
+    setLobbyStatus("Enter a room code.", "error");
+    return false;
+  }
+
+  mission.victimWins = 0;
+  mission.dispatcherAssists = 0;
+  missionCompleteAnnounced = false;
+  updateMissionStatus();
+  setPanicLevel(40);
+  configureRoleUI();
+  renderResponseHints(["Wait for dispatch support to see auto suggestions."]);
+  randomHazards(1);
+  mini.active = false;
+  miniModal.classList.add("hidden");
+  startMiniSchedule();
+
+  try {
+    await setupVoice();
+  } catch {
+    setLobbyStatus("Microphone permission is required for voice mode.", "error");
+    return false;
+  }
+
+  createRoomBtn.disabled = true;
+  joinRoomBtn.disabled = true;
+  roomInput.disabled = true;
+  roleInput.disabled = true;
+  nameInput.disabled = true;
+  muteBtn.disabled = false;
+  endBtn.disabled = false;
+  reportBtn.disabled = false;
+  voiceNotesBtn.disabled = false;
+  return true;
+}
+
+async function createRoom() {
+  if (!roomInput.value.trim()) roomInput.value = makeRoomCode();
+  if (!(await prepareGame())) return;
+  lobbyMode = "host";
+  lobbyPeer = new Peer(`dispatcher-lobby-${roomCode}`, { host: "0.peerjs.com", secure: true, port: 443, debug: 1 });
+
+  lobbyPeer.on("open", () => {
+    setLobbyStatus(`Room ${roomCode} created. Share this code with the other player.`, "success");
+    logFeed("Lobby", myName, `Created room ${roomCode} as ${myRole}. Waiting for the other player...`);
+  });
+
+  lobbyPeer.on("connection", (conn) => {
+    if (lobbyConn) {
+      conn.on("open", () => conn.send({ kind: "lobby-busy" }));
+      return;
+    }
+    lobbyConn = conn;
+    conn.on("open", () => {
+      conn.send({ kind: "lobby-info", hostRole: myRole, hostName: myName, roomCode });
+      setLobbyStatus("Player connected. Checking roles...", "success");
+    });
+    conn.on("data", (payload) => {
+      if (!payload || typeof payload !== "object") return;
+      if (payload.kind === "lobby-ready") {
+        if (payload.role === myRole) {
+          conn.send({ kind: "lobby-reject", reason: "That role is already taken. Choose the other role." });
+          setLobbyStatus("Both players cannot use the same role.", "error");
+          return;
+        }
+        conn.send({ kind: "lobby-start", hostRole: myRole, guestRole: payload.role });
+        setLobbyStatus("Both players ready. Starting game...", "success");
+        setTimeout(() => { closeLobby(); launchGamePeer(); }, 500);
+      }
+    });
+    conn.on("close", () => {
+      lobbyConn = null;
+      setLobbyStatus("Player left. Waiting for another player...");
+    });
+  });
+
+  lobbyPeer.on("error", (err) => {
+    setLobbyStatus(`Could not create room: ${err.message || "room unavailable"}`, "error");
+    closeLobby();
+    resetLobbyButtons();
+  });
+}
+
+async function joinRoom() {
+  if (!(await prepareGame())) return;
+  lobbyMode = "guest";
+  const hostId = `dispatcher-lobby-${roomCode}`;
+  lobbyPeer = new Peer({ host: "0.peerjs.com", secure: true, port: 443, debug: 1 });
+
+  lobbyPeer.on("open", () => {
+    lobbyConn = lobbyPeer.connect(hostId, { reliable: true });
+    lobbyConn.on("open", () => {
+      setLobbyStatus(`Connected to room ${roomCode}. Waiting for host...`, "success");
+      lobbyConn.send({ kind: "lobby-ready", role: myRole, name: myName });
+      logFeed("Lobby", myName, `Joined room ${roomCode}.`);
+    });
+    lobbyConn.on("data", (payload) => {
+      if (!payload || typeof payload !== "object") return;
+      if (payload.kind === "lobby-info") {
+        if (payload.hostRole === myRole) {
+          lobbyConn.send({ kind: "lobby-reject", reason: "That role is already taken. Choose the other role." });
+          setLobbyStatus("That role is already taken. Choose the other role.", "error");
+          return;
+        }
+        lobbyConn.send({ kind: "lobby-ready", role: myRole, name: myName });
+      }
+      if (payload.kind === "lobby-reject") {
+        setLobbyStatus(payload.reason || "The host rejected the join.", "error");
+        teardown();
+      }
+      if (payload.kind === "lobby-start") {
+        setLobbyStatus("Both players ready. Starting game...", "success");
+        setTimeout(() => { closeLobby(); launchGamePeer(); }, 500);
+      }
+    });
+    lobbyConn.on("close", () => {
+      setLobbyStatus("The host closed the room.", "error");
+      resetLobbyButtons();
+    });
+  });
+
+  lobbyPeer.on("error", () => {
+    setLobbyStatus("Could not join room. Make sure the code is correct and the host is online.", "error");
+    closeLobby();
+    resetLobbyButtons();
+  });
+}
+
 
 window.addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
@@ -839,7 +978,8 @@ window.addEventListener("keydown", (e) => {
 });
 window.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
 
-startBtn.addEventListener("click", joinSession);
+createRoomBtn.addEventListener("click", createRoom);
+joinRoomBtn.addEventListener("click", joinRoom);
 endBtn.addEventListener("click", () => { showReport(); teardown(); });
 reportBtn.addEventListener("click", showReport);
 voiceNotesBtn.addEventListener("click", toggleVoiceNotes);
