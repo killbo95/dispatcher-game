@@ -594,6 +594,45 @@ function speakAI(text) {
   window.speechSynthesis.speak(utterance);
 }
 
+const SOLO_SCENARIOS = [
+  {
+    id: "north-stairwell",
+    title: "North Stairwell",
+    intro: "Dispatcher, do you copy? I am Alex. I am trapped near the north stairwell. Smoke is coming through the corridor.",
+    timer: [
+      "The smoke is getting thicker. I can still see the stairwell sign.",
+      "I hear an alarm below me. I need one clear instruction.",
+      "There is a door ahead and the hallway is getting harder to see."
+    ],
+    route: "I can see the stairwell now. Tell me if I should move or stay where I am.",
+    success: "I made it closer to the safe route. Keep talking to me."
+  },
+  {
+    id: "parking-garage",
+    title: "Parking Garage",
+    intro: "Dispatcher, this is Alex. I am in the lower parking garage. I cannot tell which ramp leads outside.",
+    timer: [
+      "I hear vehicles moving somewhere nearby. The visibility is poor.",
+      "My phone is at low battery. Please keep your instructions short.",
+      "I found two ramps. One has brighter lights, but I do not know which is safer."
+    ],
+    route: "I am near the ramp now. Give me the safest direction and I will follow it.",
+    success: "Okay, I found a clearer path. I am staying with your instructions."
+  },
+  {
+    id: "mall-service-corridor",
+    title: "Service Corridor",
+    intro: "Dispatcher, I need help. I am Alex, stuck in a service corridor behind the main shops. I can hear an alarm.",
+    timer: [
+      "The alarm just changed. I think something is happening closer to me.",
+      "I found a marked exit, but there is a blocked section between us.",
+      "I can hear people on the other side of a door. I need to know what to do."
+    ],
+    route: "I found the marked exit. I will move carefully and stay away from the blocked area.",
+    success: "Your instructions worked. I am in a safer position now."
+  }
+];
+
 function startSoloAI() {
   stopSoloAI();
   soloAiActive = true;
@@ -602,13 +641,21 @@ function startSoloAI() {
   mission.victimWins = 0;
   mission.dispatcherAssists = 0;
   missionCompleteAnnounced = false;
-  panicLevel = 52;
+  panicLevel = 48;
+
+  const scenario = SOLO_SCENARIOS[Math.floor(Math.random() * SOLO_SCENARIOS.length)];
   soloAiScenario = {
     turn: 0,
     pressure: 0,
     name: "Alex",
     lastPrompt: "",
-    respondedTo: new Set()
+    respondedTo: new Set(),
+    scenario,
+    phase: 0,
+    supportCount: 0,
+    routeGiven: false,
+    calmCount: 0,
+    lastActionAt: Date.now()
   };
 
   configureRoleUI();
@@ -616,11 +663,13 @@ function startSoloAI() {
   setStatus();
   renderResponseHints([]);
   randomHazards(2);
+  mapLegend.textContent = `AI incident: ${scenario.title}`;
   roundStatus.textContent = "Round: AI Dispatch";
-  setLobbyStatus("AI caller online. Respond using the chat box or Voice Notes.", "success");
-  logFeed("AI Caller", "Alex", "Dispatcher, do you copy? I need help. I am trapped near the north stairwell.");
-  speakAI("Dispatcher, do you copy? I need help. I am trapped near the north stairwell.");
-  scheduleSoloAI(2600);
+  setLobbyStatus(`AI caller online — incident: ${scenario.title}. Use chat, Voice Notes, or the dispatch controls.`, "success");
+  logFeed("Incident", "System", `New AI emergency: ${scenario.title}`);
+  logFeed("AI Caller", "Alex", scenario.intro);
+  speakAI(scenario.intro);
+  scheduleSoloAI(3200);
 }
 
 function stopSoloAI() {
@@ -633,7 +682,7 @@ function stopSoloAI() {
   soloAiScenario = null;
 }
 
-function scheduleSoloAI(delay = 2400) {
+function scheduleSoloAI(delay = 3200) {
   if (!soloAiActive) return;
   if (soloAiTimer) clearTimeout(soloAiTimer);
   soloAiTimer = setTimeout(() => {
@@ -653,81 +702,111 @@ function soloAIReact(type, text) {
   if (!soloAiActive || !soloAiScenario) return;
   const s = soloAiScenario;
   s.turn += 1;
+  s.lastActionAt = Date.now();
   const lower = (text || "").toLowerCase();
 
   if (type === "timer") {
-    if (panicLevel > 78) {
-      soloAIReply("My panic is getting worse. Please tell me one clear step at a time.");
-    } else if (s.turn % 3 === 0) {
-      soloAIReply("I can hear something moving nearby. Do you still have me on the line?");
-    } else {
-      soloAIReply("I am still here. The smoke is getting thicker. What should I do next?");
+    s.phase = Math.min(s.phase + 1, s.scenario.timer.length - 1);
+    const line = s.scenario.timer[s.phase];
+    soloAIReply(line);
+    setPanicLevel(Math.min(100, panicLevel + (s.phase >= 2 ? 9 : 6)), "AI pressure");
+
+    if (panicLevel >= 82) {
+      startEmergencyBeep();
+      soloAIReply("I am starting to panic. Please give me one simple instruction now.");
+    } else if (s.phase === s.scenario.timer.length - 1 && !s.routeGiven) {
+      soloAIReply(s.scenario.route);
     }
-    setPanicLevel(Math.min(100, panicLevel + 7), "AI pressure");
-    if (panicLevel >= 85) startEmergencyBeep();
-    scheduleSoloAI(5200);
+
+    scheduleSoloAI(panicLevel >= 80 ? 3800 : 5600);
     return;
   }
 
   if (type === "severity") {
     s.pressure += 1;
-    setPanicLevel(Math.min(100, panicLevel + 4), "Severity response");
+    mapState.severity = Math.max(mapState.severity, Number((text.match(/\d+/) || [1])[0]));
+    setPanicLevel(Math.min(100, panicLevel + 4 + s.pressure), "Severity response");
+
     if (mapState.severity >= 4) {
-      soloAIReply("That sounds serious. I need reassurance and a safe route out.");
+      soloAIReply("That is critical. I need reassurance and a safe route out. Please keep your next instruction short.");
+    } else if (mapState.severity >= 3) {
+      soloAIReply("Understood. I can handle this, but the situation is getting worse. What is my next move?");
     } else {
-      soloAIReply("Okay, I understand the situation is getting worse. Keep talking to me.");
+      soloAIReply("Okay. I understand the situation. Keep monitoring me and tell me what to do.");
     }
-    scheduleSoloAI(5200);
+    scheduleSoloAI(5000);
     return;
   }
 
   if (type === "support") {
     const tag = supportTagFromText(text);
+    s.supportCount += 1;
     mapState.supportTag = tag;
-    setPanicLevel(Math.max(10, panicLevel - 18), "Support received");
+    setPanicLevel(Math.max(10, panicLevel - 16), "Support received");
+
     const replies = {
-      medical: "Thank you. My breathing is okay, but I am scared. Stay with me.",
-      fire: "I see the smoke. I will move carefully away from it and wait for your next instruction.",
-      police: "Understood. I will stay where I am and wait for the safe route.",
-      rescue: "Okay, I can hold on until rescue arrives. Keep talking to me.",
-      calm: "That helps. I can focus again. Tell me what to do next."
+      medical: "Thank you. I am not badly hurt, but I am shaken. Stay with me while I move.",
+      fire: "I see the smoke. I will keep away from it and move only when you tell me the route.",
+      police: "Understood. I will stay out of the open area and wait for the safe route.",
+      rescue: "Okay, I can hear that help is coming. I will stay focused on your instructions.",
+      calm: "That helps. I can focus again. Tell me exactly what you want me to do."
     };
     soloAIReply(replies[tag] || replies.calm);
-    scheduleSoloAI(6000);
+    if (s.supportCount >= 2 && !s.routeGiven) {
+      soloAIReply(s.scenario.route);
+    }
+    scheduleSoloAI(5200);
     return;
   }
 
   if (type === "assist") {
-    setPanicLevel(Math.max(8, panicLevel - 10), "Assist confirmed");
+    setPanicLevel(Math.max(8, panicLevel - 11), "Assist confirmed");
+    if (mission.dispatcherAssists >= 1 && mission.dispatcherAssists < 3) {
+      s.routeGiven = true;
+      soloAIReply(s.scenario.success);
+      mapState.victimX = Math.min(0.9, mapState.victimX + 0.12);
+      mapState.victimY = Math.max(0.1, mapState.victimY - 0.08);
+    }
     if (mission.dispatcherAssists >= 3) {
       mission.victimWins = 3;
       updateMissionStatus();
-      soloAIReply("I can see the rescue team now. We made it. Mission complete.");
+      soloAIReply("I can see the rescue team now. We made it out. Mission complete.");
       stopEmergencyBeep();
       return;
     }
-    soloAIReply("I see progress. I am staying put and following your instructions.");
-    scheduleSoloAI(5000);
+    scheduleSoloAI(4800);
     return;
   }
 
   if (type === "voice" || type === "chat") {
-    if (lower.includes("stay") || lower.includes("calm") || lower.includes("breathe") || lower.includes("help")) {
+    const calming = /stay|calm|breathe|wait|listen|with me|do not panic|don't panic/.test(lower);
+    const route = /exit|stairs|stairwell|move|route|door|ramp|left|right|north|south|east|west|away/.test(lower);
+    const rescue = /rescue|fire|police|medical|ambulance|help is coming|support/.test(lower);
+
+    if (calming) {
+      s.calmCount += 1;
       setPanicLevel(Math.max(8, panicLevel - 12), "Dispatcher response");
-      soloAIReply("Okay. I hear you. I am staying calm and listening.");
-    } else if (lower.includes("exit") || lower.includes("stairs") || lower.includes("move") || lower.includes("route")) {
-      setPanicLevel(Math.max(8, panicLevel - 7), "Route given");
-      soloAIReply("Got it. I will move carefully toward the safer route you described.");
+      soloAIReply(s.calmCount >= 2 ? "I am calmer now. I can follow your instructions." : "Okay. I hear you. I am staying calm and listening.");
+    } else if (route) {
+      s.routeGiven = true;
+      setPanicLevel(Math.max(8, panicLevel - 9), "Route given");
+      mapState.victimX = Math.min(0.9, mapState.victimX + 0.06);
+      soloAIReply("Got it. I will move carefully toward that route and tell you if anything changes.");
+      if (s.turn % 2 === 0) soloAIReply("I found the route you described. I am moving now.");
+    } else if (rescue) {
+      setPanicLevel(Math.max(12, panicLevel - 8), "Help confirmed");
+      soloAIReply("Understood. I will stay in a safe position until help reaches me.");
     } else {
-      setPanicLevel(Math.min(100, panicLevel + 2), "Unclear instruction");
-      soloAIReply("I am not sure I understood. Please give me one short instruction.");
+      setPanicLevel(Math.min(100, panicLevel + 3), "Unclear instruction");
+      soloAIReply("I heard you, but I need a clearer instruction. Tell me one action and one direction.");
     }
 
-    if (panicLevel <= 15) {
+    if (panicLevel <= 15 && s.routeGiven) {
       mission.dispatcherAssists = Math.min(3, mission.dispatcherAssists + 1);
       updateMissionStatus();
     }
-    scheduleSoloAI(6500);
+    if (panicLevel >= 88) startEmergencyBeep();
+    scheduleSoloAI(panicLevel >= 80 ? 4000 : 6000);
   }
 }
 
