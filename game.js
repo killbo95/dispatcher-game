@@ -72,6 +72,9 @@ let connectTimer = null;
 let emergencyTimer = null;
 let emergencyAudioCtx = null;
 let miniInterval = null;
+let soloAiActive = false;
+let soloAiTimer = null;
+let soloAiScenario = null;
 
 let myName = "Player";
 let myRole = "dispatcher";
@@ -131,9 +134,9 @@ function sanitizeRoom(value) {
 }
 
 function setStatus() {
-  connectionStatus.textContent = peer ? `Connected as ${localPeerId}` : "Disconnected";
+  connectionStatus.textContent = peer ? `Connected as ${localPeerId}` : soloAiActive ? "Solo AI Connected" : "Disconnected";
   playerStatus.textContent = `Role: ${myRole || "-"} | Name: ${myName || "-"}`;
-  voiceStatus.textContent = localStream ? `Voice: ${isMuted ? "Muted" : "Live"}` : "Voice: Off";
+  voiceStatus.textContent = localStream ? `Voice: ${isMuted ? "Muted" : "Live"}` : soloAiActive ? "Voice: AI Ready" : "Voice: Off";
 }
 
 function updateMissionStatus() {
@@ -144,6 +147,7 @@ function updateMissionStatus() {
     logFeed("Mission", "System", "Mission complete. Both sides reached 3 objectives.");
     sendPayload({ kind: "mission-complete" });
     stopMiniSchedule();
+    stopSoloAI();
   }
 }
 
@@ -157,7 +161,7 @@ function logFeed(type, author, text) {
   item.className = "feedItem";
   const now = new Date();
   const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  item.innerHTML = `<small>${time} | ${type} | ${author}</small>${escapeHtml(text)}`;
+  item.innerHTML = `<small>${time} | ${type} | ${escapeHtml(author)}</small>${escapeHtml(text)}`;
   feed.prepend(item);
   logTimeline(type, `${author}: ${text}`);
 }
@@ -174,7 +178,7 @@ function escapeHtml(str) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/\\/g, "&quot;")
+    .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
 
@@ -187,7 +191,7 @@ function setPanicLevel(next, reason = "") {
   panicLevel = Math.max(0, Math.min(100, Math.round(next)));
   panicStatus.textContent = `Panic: ${panicLevel}${reason ? ` (${reason})` : ""}`;
   panicStatus.style.borderColor = panicLevel < 35 ? "#1f5a44" : panicLevel < 70 ? "#7a5a2d" : "#7c2839";
-  if (myRole === "victim") sendPayload({ kind: "panic-update", value: panicLevel, reason });
+  if (myRole === "victim" && !soloAiActive) sendPayload({ kind: "panic-update", value: panicLevel, reason });
 }
 
 function supportTagFromText(text) {
@@ -221,7 +225,7 @@ function renderResponseHints(items) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.textContent = "Send";
-    btn.disabled = myRole !== "victim";
+    btn.disabled = myRole !== "victim" || soloAiActive;
     btn.addEventListener("click", () => {
       logFeed("Hint", myName, line);
       sendPayload({ kind: "victim-line", text: line });
@@ -237,8 +241,8 @@ function configureRoleUI() {
   dispatcherPanel.classList.toggle("hidden", !isDispatcher);
   victimPanel.classList.toggle("hidden", isDispatcher);
   markAssistBtn.disabled = !isDispatcher;
-  forceMiniBtn.disabled = !isDispatcher;
-  roundStatus.textContent = isDispatcher ? "Round: Dispatching" : "Round: Survival";
+  forceMiniBtn.disabled = !isDispatcher || soloAiActive;
+  roundStatus.textContent = soloAiActive ? "Round: AI Dispatch" : isDispatcher ? "Round: Dispatching" : "Round: Survival";
 }
 
 function stopMiniSchedule() {
@@ -343,9 +347,7 @@ function stopEmergencyBeep() {
 
 function forceVictimMicDown() {
   if (myRole !== "victim") return;
-  if (localStream) {
-    localStream.getAudioTracks().forEach((t) => { t.enabled = false; });
-  }
+  if (localStream) localStream.getAudioTracks().forEach((t) => { t.enabled = false; });
   voiceStatus.textContent = "Voice: Down (Critical)";
   muteBtn.disabled = true;
   sendPayload({ kind: "victim-critical", active: true });
@@ -353,9 +355,7 @@ function forceVictimMicDown() {
 
 function recoverVictimMic() {
   if (myRole !== "victim") return;
-  if (localStream) {
-    localStream.getAudioTracks().forEach((t) => { t.enabled = !isMuted; });
-  }
+  if (localStream) localStream.getAudioTracks().forEach((t) => { t.enabled = !isMuted; });
   muteBtn.disabled = false;
   setStatus();
   sendPayload({ kind: "victim-critical", active: false });
@@ -381,9 +381,7 @@ function handleMiniFail() {
   setPanicLevel(panicLevel + 20, "Collision");
   forceVictimMicDown();
   closeMiniModal();
-  setTimeout(() => {
-    recoverVictimMic();
-  }, 6500);
+  setTimeout(() => recoverVictimMic(), 6500);
 }
 
 function handleMiniWin() {
@@ -393,9 +391,7 @@ function handleMiniWin() {
   updateMissionStatus();
   gameHud.textContent = `Round ${mini.round} complete.`;
   closeMiniModal();
-  if (mission.victimWins >= 3) {
-    gameHud.textContent = "Victim objective complete (3/3).";
-  }
+  if (mission.victimWins >= 3) gameHud.textContent = "Victim objective complete (3/3).";
 }
 
 function updateMini(dt) {
@@ -481,6 +477,7 @@ function setupDispatcherControls() {
       roundStatus.textContent = `Round: ${label}`;
       logFeed("Dispatch", myName, `Incident set to ${label}`);
       sendPayload({ kind: "dispatch", text: `Incident ${label}`, score: idx + 1 });
+      if (soloAiActive) soloAIReact("severity", label);
     });
     severityButtons.appendChild(b);
   });
@@ -494,6 +491,7 @@ function setupDispatcherControls() {
       mapState.supportTag = tag;
       logFeed("Support", myName, line);
       sendPayload({ kind: "support", text: line, tag });
+      if (soloAiActive) soloAIReact("support", line);
 
       const buttons = Array.from(supportButtons.querySelectorAll("button"));
       buttons.forEach((x) => x.disabled = true);
@@ -517,10 +515,11 @@ function setupDispatcherControls() {
     sendPayload({ kind: "dispatch-assist", value: mission.dispatcherAssists });
     logFeed("Mission", myName, "Dispatch assist marked complete.");
     updateMissionStatus();
+    if (soloAiActive) soloAIReact("assist", mission.dispatcherAssists);
   });
 
   forceMiniBtn.addEventListener("click", () => {
-    if (myRole !== "dispatcher") return;
+    if (myRole !== "dispatcher" || soloAiActive) return;
     logFeed("Dispatch", myName, "Forced victim mini-game.");
     sendPayload({ kind: "force-mini" });
   });
@@ -561,6 +560,7 @@ function setupVoiceNotes() {
       logTranscript(myName, text);
       logFeed("Voice Note", myName, text);
       sendPayload({ kind: "transcript", text });
+      if (soloAiActive) soloAIReact("voice", text);
     }
   };
 
@@ -584,6 +584,153 @@ function toggleVoiceNotes() {
   }
 }
 
+function speakAI(text) {
+  if (!("speechSynthesis" in window)) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 1.02;
+  utterance.pitch = 1.05;
+  utterance.volume = 0.9;
+  window.speechSynthesis.speak(utterance);
+}
+
+function startSoloAI() {
+  stopSoloAI();
+  soloAiActive = true;
+  myRole = "dispatcher";
+  myName = (nameInput.value || "Dispatcher").trim().slice(0, 24) || "Dispatcher";
+  mission.victimWins = 0;
+  mission.dispatcherAssists = 0;
+  missionCompleteAnnounced = false;
+  panicLevel = 52;
+  soloAiScenario = {
+    turn: 0,
+    pressure: 0,
+    name: "Alex",
+    lastPrompt: "",
+    respondedTo: new Set()
+  };
+
+  configureRoleUI();
+  updateMissionStatus();
+  setStatus();
+  renderResponseHints([]);
+  randomHazards(2);
+  roundStatus.textContent = "Round: AI Dispatch";
+  setLobbyStatus("AI caller online. Respond using the chat box or Voice Notes.", "success");
+  logFeed("AI Caller", "Alex", "Dispatcher, do you copy? I need help. I am trapped near the north stairwell.");
+  speakAI("Dispatcher, do you copy? I need help. I am trapped near the north stairwell.");
+  scheduleSoloAI(2600);
+}
+
+function stopSoloAI() {
+  soloAiActive = false;
+  if (soloAiTimer) {
+    clearTimeout(soloAiTimer);
+    soloAiTimer = null;
+  }
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  soloAiScenario = null;
+}
+
+function scheduleSoloAI(delay = 2400) {
+  if (!soloAiActive) return;
+  if (soloAiTimer) clearTimeout(soloAiTimer);
+  soloAiTimer = setTimeout(() => {
+    if (!soloAiActive || !soloAiScenario) return;
+    soloAIReact("timer", "");
+  }, delay);
+}
+
+function soloAIReply(text) {
+  if (!soloAiActive || !text) return;
+  logTranscript("AI Caller", text);
+  logFeed("AI Caller", "Alex", text);
+  speakAI(text);
+}
+
+function soloAIReact(type, text) {
+  if (!soloAiActive || !soloAiScenario) return;
+  const s = soloAiScenario;
+  s.turn += 1;
+  const lower = (text || "").toLowerCase();
+
+  if (type === "timer") {
+    if (panicLevel > 78) {
+      soloAIReply("My panic is getting worse. Please tell me one clear step at a time.");
+    } else if (s.turn % 3 === 0) {
+      soloAIReply("I can hear something moving nearby. Do you still have me on the line?");
+    } else {
+      soloAIReply("I am still here. The smoke is getting thicker. What should I do next?");
+    }
+    setPanicLevel(Math.min(100, panicLevel + 7), "AI pressure");
+    if (panicLevel >= 85) startEmergencyBeep();
+    scheduleSoloAI(5200);
+    return;
+  }
+
+  if (type === "severity") {
+    s.pressure += 1;
+    setPanicLevel(Math.min(100, panicLevel + 4), "Severity response");
+    if (mapState.severity >= 4) {
+      soloAIReply("That sounds serious. I need reassurance and a safe route out.");
+    } else {
+      soloAIReply("Okay, I understand the situation is getting worse. Keep talking to me.");
+    }
+    scheduleSoloAI(5200);
+    return;
+  }
+
+  if (type === "support") {
+    const tag = supportTagFromText(text);
+    mapState.supportTag = tag;
+    setPanicLevel(Math.max(10, panicLevel - 18), "Support received");
+    const replies = {
+      medical: "Thank you. My breathing is okay, but I am scared. Stay with me.",
+      fire: "I see the smoke. I will move carefully away from it and wait for your next instruction.",
+      police: "Understood. I will stay where I am and wait for the safe route.",
+      rescue: "Okay, I can hold on until rescue arrives. Keep talking to me.",
+      calm: "That helps. I can focus again. Tell me what to do next."
+    };
+    soloAIReply(replies[tag] || replies.calm);
+    scheduleSoloAI(6000);
+    return;
+  }
+
+  if (type === "assist") {
+    setPanicLevel(Math.max(8, panicLevel - 10), "Assist confirmed");
+    if (mission.dispatcherAssists >= 3) {
+      mission.victimWins = 3;
+      updateMissionStatus();
+      soloAIReply("I can see the rescue team now. We made it. Mission complete.");
+      stopEmergencyBeep();
+      return;
+    }
+    soloAIReply("I see progress. I am staying put and following your instructions.");
+    scheduleSoloAI(5000);
+    return;
+  }
+
+  if (type === "voice" || type === "chat") {
+    if (lower.includes("stay") || lower.includes("calm") || lower.includes("breathe") || lower.includes("help")) {
+      setPanicLevel(Math.max(8, panicLevel - 12), "Dispatcher response");
+      soloAIReply("Okay. I hear you. I am staying calm and listening.");
+    } else if (lower.includes("exit") || lower.includes("stairs") || lower.includes("move") || lower.includes("route")) {
+      setPanicLevel(Math.max(8, panicLevel - 7), "Route given");
+      soloAIReply("Got it. I will move carefully toward the safer route you described.");
+    } else {
+      setPanicLevel(Math.min(100, panicLevel + 2), "Unclear instruction");
+      soloAIReply("I am not sure I understood. Please give me one short instruction.");
+    }
+
+    if (panicLevel <= 15) {
+      mission.dispatcherAssists = Math.min(3, mission.dispatcherAssists + 1);
+      updateMissionStatus();
+    }
+    scheduleSoloAI(6500);
+  }
+}
+
 function bindDataConnection(conn) {
   dataConn = conn;
 
@@ -596,10 +743,7 @@ function bindDataConnection(conn) {
   conn.on("data", (payload) => {
     if (!payload || typeof payload !== "object") return;
 
-    if (payload.kind === "intro") {
-      logFeed("Intro", "Peer", payload.text);
-      return;
-    }
+    if (payload.kind === "intro") { logFeed("Intro", "Peer", payload.text); return; }
 
     if (payload.kind === "dispatch") {
       mapState.severity = payload.score || mapState.severity;
@@ -626,11 +770,7 @@ function bindDataConnection(conn) {
       return;
     }
 
-    if (payload.kind === "transcript") {
-      logTranscript("Peer", payload.text);
-      logFeed("Voice Note", "Peer", payload.text);
-      return;
-    }
+    if (payload.kind === "transcript") { logTranscript("Peer", payload.text); logFeed("Voice Note", "Peer", payload.text); return; }
 
     if (payload.kind === "panic-update") {
       if (myRole === "dispatcher") panicStatus.textContent = `Peer Panic: ${payload.value}`;
@@ -680,14 +820,9 @@ function bindDataConnection(conn) {
       return;
     }
 
-    if (payload.kind === "victim-line") {
-      logFeed("Victim", "Peer", payload.text);
-      return;
-    }
+    if (payload.kind === "victim-line") { logFeed("Victim", "Peer", payload.text); return; }
 
-    if (payload.kind === "chat") {
-      logFeed("Chat", "Peer", payload.text);
-    }
+    if (payload.kind === "chat") { logFeed("Chat", "Peer", payload.text); }
   });
 }
 
@@ -761,6 +896,7 @@ function teardown() {
   clearConnectLoop();
   stopEmergencyBeep();
   stopMiniSchedule();
+  stopSoloAI();
   mini.active = false;
   miniModal.classList.add("hidden");
 
@@ -1018,13 +1154,14 @@ function openInitialMode() {
 
   if (mode === "solo") {
     lobbyPanelTitle.textContent = "Solo Mode";
-    lobbyPanelHint.textContent = "AI caller mode is the next step. Multiplayer remains available from the main menu.";
+    lobbyPanelHint.textContent = "You are the dispatcher. An AI caller will react to your instructions in real time.";
     createRoomBtn.style.display = "none";
     joinRoomBtn.style.display = "none";
-    nameInput.parentElement.style.display = "none";
+    nameInput.parentElement.style.display = "";
     roleInput.parentElement.style.display = "none";
     roomInput.parentElement.style.display = "none";
-    setLobbyStatus("AI caller integration is not connected yet.");
+    nameInput.value = nameInput.value || "Dispatcher";
+    startSoloAI();
   }
 
   if (mode === "browse") {
@@ -1059,6 +1196,7 @@ sendChat.addEventListener("click", () => {
   if (!text) return;
   logFeed("Chat", myName, text);
   sendPayload({ kind: "chat", text });
+  if (soloAiActive) soloAIReact("chat", text);
   chatInput.value = "";
 });
 
