@@ -1,1 +1,53 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Available Lobbies — Dispatcher Ops</title><link rel="stylesheet" href="./style.css"></head><body><main class="app"><section class="card standalonePage"><a class="smallButton pageBack" href="./index.html">← Main Menu</a><div class="menuKicker">DISPATCHER OPS</div><h1>Available Lobbies</h1><p class="muted">Public lobby discovery is ready for its room service. For now, you can use a private room code.</p><div class="emptyLobby"><strong>No public lobbies yet</strong><span>Private rooms still work with a room code.</span></div><a class="pageAction" href="./game.html?mode=browse">Open Lobby Browser</a></section></main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Available Lobbies — Dispatcher Ops</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="app">
+    <section class="card standalonePage">
+      <a class="smallButton pageBack" href="./index.html">← Main Menu</a>
+      <div class="menuKicker">DISPATCHER OPS</div>
+      <h1>Available Lobbies</h1>
+      <p class="muted">Pick how you want to play. Solo AI starts immediately; private multiplayer uses a room code.</p>
+
+      <div class="lobbyGrid">
+        <button class="lobbyChoice" type="button" id="soloLobby">
+          <strong>🤖 Solo AI Caller</strong>
+          <span>Practice dispatching with an AI caller that talks, reacts, panics, and remembers your instructions.</span>
+        </button>
+
+        <button class="lobbyChoice" type="button" id="createLobby">
+          <strong>＋ Create Private Room</strong>
+          <span>Host a live dispatcher/victim session and share the generated room code.</span>
+        </button>
+
+        <button class="lobbyChoice" type="button" id="joinLobby">
+          <strong>↗ Join Private Room</strong>
+          <span>Enter a room code and connect to another player.</span>
+        </button>
+      </div>
+
+      <div class="emptyLobby">
+        <strong>Public lobby discovery</strong>
+        <span>Peer-to-peer rooms do not provide a reliable public room list. Private codes are used instead so rooms stay joinable without a central server.</span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    document.getElementById("soloLobby").onclick = () => {
+      window.location.href = "./game.html?mode=solo";
+    };
+    document.getElementById("createLobby").onclick = () => {
+      window.location.href = "./create-room.html";
+    };
+    document.getElementById("joinLobby").onclick = () => {
+      window.location.href = "./join-room.html";
+    };
+  </script>
+</body>
+</html>
