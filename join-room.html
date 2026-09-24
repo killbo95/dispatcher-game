@@ -1,1 +1,47 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Join Room — Dispatcher Ops</title><link rel="stylesheet" href="./style.css"></head><body><main class="app"><section class="card standalonePage"><a class="smallButton pageBack" href="./index.html">← Main Menu</a><div class="menuKicker">DISPATCHER OPS</div><h1>Join a Room</h1><p class="muted">Enter the room code your friend gave you, choose your role, and join.</p><a class="pageAction" href="./game.html?mode=join">Continue to Join</a></section></main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join Room — Dispatcher Ops</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="app">
+    <section class="card standalonePage">
+      <a class="smallButton pageBack" href="./index.html">← Main Menu</a>
+      <div class="menuKicker">DISPATCHER OPS</div>
+      <h1>Join a Room</h1>
+      <p class="muted">Enter the code your friend is hosting.</p>
+      <div class="roomSetupCard">
+        <label>Your Name<input id="joinName" maxlength="24" value="Player" placeholder="Your name"></label>
+        <label>Your Role<select id="joinRole"><option value="victim">Victim</option><option value="dispatcher">Dispatcher</option></select></label>
+        <label>Room Code<input id="joinCode" maxlength="24" placeholder="ROOM-ABC123" autocomplete="off"></label>
+        <button id="joinButton" class="pageAction" type="button">Join Room</button>
+        <div id="joinStatus" class="lobbyStatus">Waiting for a room code.</div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const nameInput = document.getElementById("joinName");
+    const roleInput = document.getElementById("joinRole");
+    const codeInput = document.getElementById("joinCode");
+    const button = document.getElementById("joinButton");
+    const status = document.getElementById("joinStatus");
+    codeInput.focus();
+    button.addEventListener("click", () => {
+      const name = nameInput.value.trim() || "Player";
+      const role = roleInput.value;
+      const room = codeInput.value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, "");
+      if (!room) { status.textContent = "Enter the room code first."; codeInput.focus(); return; }
+      sessionStorage.setItem("dispatcherName", name);
+      sessionStorage.setItem("dispatcherRole", role);
+      sessionStorage.setItem("dispatcherRoom", room);
+      sessionStorage.removeItem("dispatcherCreated");
+      status.textContent = "Connecting...";
+      window.location.href = "./game.html?mode=join&room=" + encodeURIComponent(room);
+    });
+    codeInput.addEventListener("keydown", (event) => { if (event.key === "Enter") button.click(); });
+  </script>
+</body>
+</html>
