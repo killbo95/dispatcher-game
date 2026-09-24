@@ -103,6 +103,11 @@
     .lobbyChoice span { opacity:.78; line-height:1.45; }
     .lobbyChoice:hover { transform:translateY(-2px); }
     .soloQuickActions { margin-top:18px; padding-top:4px; }
+    .incomingCallCard { margin:0 0 14px; padding:14px; border:1px solid rgba(255,105,130,.45); border-radius:14px; background:rgba(120,20,45,.16); box-shadow:0 0 22px rgba(255,70,100,.08); }
+    .incomingCallCard strong { display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:.08em; }
+    #scoreStatus { font-weight:700; }
+    .dispatcher.card:has(.incomingCallCard:not(.hidden)) { border-color:rgba(255,105,130,.4); }
+
     .aiLiveBadge { animation:aiPulse 1.6s ease-in-out infinite; }
     @keyframes aiPulse { 50% { opacity:.55; } }
     @media (max-width:700px) {
