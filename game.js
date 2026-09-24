@@ -76,6 +76,25 @@ let soloAiActive = false;
 let soloAiTimer = null;
 let soloAiScenario = null;
 
+const scoreState = {
+  score: 0,
+  callsHandled: 0,
+  correctActions: 0,
+  mistakes: 0,
+  responseSeconds: [],
+  currentCall: null,
+  callStartedAt: 0,
+  shiftStartedAt: Date.now(),
+};
+
+const RANDOM_CALLS = [
+  { type: "Medical", title: "Medical emergency", location: "Al Noor School, east entrance", detail: "A student has collapsed and needs medical assistance.", severity: 3, target: "medical" },
+  { type: "Fire", title: "Smoke reported", location: "Harbor Heights, Floor 6", detail: "A caller reports heavy smoke near a hallway.", severity: 4, target: "fire" },
+  { type: "Traffic", title: "Road collision", location: "Airport Road, Junction 4", detail: "Two vehicles are blocking a lane after a collision.", severity: 3, target: "police" },
+  { type: "Rescue", title: "Person trapped", location: "Central Mall, service corridor", detail: "A caller is stuck behind a blocked service door.", severity: 4, target: "rescue" },
+  { type: "Missing Person", title: "Missing child", location: "Riverside Park, north gate", detail: "A parent reports that their child is missing near the north gate.", severity: 2, target: "police" },
+];
+
 let myName = "Player";
 let myRole = "dispatcher";
 let roomCode = "";
@@ -137,6 +156,54 @@ function setStatus() {
   connectionStatus.textContent = peer ? `Connected as ${localPeerId}` : soloAiActive ? "Solo AI Connected" : "Disconnected";
   playerStatus.textContent = `Role: ${myRole || "-"} | Name: ${myName || "-"}`;
   voiceStatus.textContent = localStream ? `Voice: ${isMuted ? "Muted" : "Live"}` : soloAiActive ? "Voice: AI Ready" : "Voice: Off";
+}
+
+function scoreAction(points, label) {
+  scoreState.score = Math.max(0, scoreState.score + points);
+  if (points > 0) scoreState.correctActions += 1;
+  if (points < 0) scoreState.mistakes += 1;
+  logFeed("Score", "System", label + " " + (points >= 0 ? "+" : "") + points + " points. Score: " + scoreState.score);
+}
+
+function rankForScore(score) {
+  if (score >= 500) return "Elite Dispatcher";
+  if (score >= 350) return "Senior Dispatcher";
+  if (score >= 200) return "Dispatcher";
+  return "Rookie Dispatcher";
+}
+
+function nextRandomCall(force = false) {
+  if (myRole !== "dispatcher" || soloAiActive) return;
+  if (scoreState.currentCall && !force) return;
+  const call = RANDOM_CALLS[Math.floor(Math.random() * RANDOM_CALLS.length)];
+  scoreState.currentCall = call;
+  scoreState.callStartedAt = Date.now();
+  mapState.severity = call.severity;
+  mapState.supportTag = call.target;
+  randomHazards(call.severity);
+  parseLocationToMap(call.location);
+  mapLegend.textContent = "Incoming " + call.type + ": " + call.location;
+  roundStatus.textContent = "INCOMING: " + call.title;
+  logFeed("Incoming Call", "911", call.title + " — " + call.location + ". " + call.detail);
+}
+
+function resolveRandomCall(actionTag) {
+  const call = scoreState.currentCall;
+  if (!call || myRole !== "dispatcher") return;
+  const elapsed = Math.max(1, Math.round((Date.now() - scoreState.callStartedAt) / 1000));
+  scoreState.responseSeconds.push(elapsed);
+  const correct = actionTag === call.target;
+  if (correct) {
+    const speedBonus = Math.max(0, 40 - elapsed * 2);
+    scoreAction(60 + speedBonus, "Correct " + call.type + " response");
+    logFeed("Call Resolved", "System", "Good dispatch. Response time: " + elapsed + "s.");
+    scoreState.callsHandled += 1;
+  } else {
+    scoreAction(-25, "Wrong support for " + call.type);
+    logFeed("Call Warning", "System", "That response did not match the emergency. Match the support to the incident.");
+  }
+  scoreState.currentCall = null;
+  setTimeout(() => nextRandomCall(), 1800);
 }
 
 function updateMissionStatus() {
@@ -489,6 +556,7 @@ function setupDispatcherControls() {
     b.addEventListener("click", () => {
       const tag = supportTagFromText(line);
       mapState.supportTag = tag;
+      resolveRandomCall(tag);
       logFeed("Support", myName, line);
       sendPayload({ kind: "support", text: line, tag });
       if (soloAiActive) soloAIReact("support", line);
@@ -952,12 +1020,21 @@ function startConnectLoop() {
 
 function buildReport() {
   const latest = timeline.slice(-20).reverse();
+  const avgResponse = scoreState.responseSeconds.length
+    ? (scoreState.responseSeconds.reduce((a, b) => a + b, 0) / scoreState.responseSeconds.length).toFixed(1)
+    : "—";
   const lines = [
     "=== MISSION REPORT ===",
     `Role: ${myRole}`,
     `Victim rounds complete: ${mission.victimWins}/3`,
     `Dispatcher assists complete: ${mission.dispatcherAssists}/3`,
     `Final panic level: ${panicLevel}`,
+    `Dispatcher score: ${scoreState.score}`,
+    `Calls handled: ${scoreState.callsHandled}`,
+    `Correct actions: ${scoreState.correctActions}`,
+    `Mistakes: ${scoreState.mistakes}`,
+    `Average response time: ${avgResponse}s`,
+    `Rank: ${rankForScore(scoreState.score)}`,
     `Mission complete: ${mission.victimWins >= 3 && mission.dispatcherAssists >= 3 ? "YES" : "NO"}`,
     "",
     "=== TIMELINE ===",
@@ -1295,6 +1372,12 @@ function loop(now) {
 
 setupDispatcherControls();
 setupLocationCards();
+
+if (dispatcherMap) {
+  dispatcherMap.addEventListener("click", () => {
+    if (myRole === "dispatcher" && !soloAiActive && !scoreState.currentCall) nextRandomCall(true);
+  });
+}
 setupVoiceNotes();
 configureRoleUI();
 renderResponseHints(["Wait for dispatch support to see auto suggestions."]);
@@ -1304,3 +1387,4 @@ setStatus();
 logFeed("System", "Game", "Choose your role and room code, then create or join the room.");
 requestAnimationFrame(loop);
 openInitialMode();
+setTimeout(() => nextRandomCall(), 2500);
