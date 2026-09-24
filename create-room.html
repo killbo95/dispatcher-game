@@ -12,7 +12,7 @@
       <a class="smallButton pageBack" href="./index.html">← Main Menu</a>
       <div class="menuKicker">DISPATCHER OPS</div>
       <h1>Create a Room</h1>
-      <p class="muted">Create your multiplayer room from this page.</p>
+      <p class="muted">Set up your player, then the game will create the live room connection.</p>
 
       <div class="roomSetupCard">
         <label>
@@ -33,18 +33,21 @@
           <input id="createRoomCode" type="text" maxlength="24" placeholder="CITY-247">
         </label>
 
-        <button id="createRoomButton" class="pageAction" type="button">Create Room</button>
-        <div id="createRoomStatus" class="lobbyStatus">Ready to create a room.</div>
+        <div class="buttonRow">
+          <button id="newCode" type="button">Generate New Code</button>
+          <button id="createRoomButton" class="pageAction" type="button">Open Room</button>
+        </div>
+        <div id="createRoomStatus" class="lobbyStatus">Ready.</div>
       </div>
     </section>
   </main>
 
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script>
     const nameInput = document.getElementById("createName");
     const roleInput = document.getElementById("createRole");
     const roomInput = document.getElementById("createRoomCode");
     const button = document.getElementById("createRoomButton");
+    const newCode = document.getElementById("newCode");
     const status = document.getElementById("createRoomStatus");
 
     function makeRoomCode() {
@@ -54,7 +57,12 @@
       return "ROOM-" + code;
     }
 
-    roomInput.value = makeRoomCode();
+    function generateCode() {
+      roomInput.value = makeRoomCode();
+    }
+
+    generateCode();
+    newCode.addEventListener("click", generateCode);
 
     button.addEventListener("click", () => {
       const name = nameInput.value.trim() || "Player";
@@ -66,35 +74,13 @@
         return;
       }
 
-      button.disabled = true;
-      status.textContent = "Creating room...";
+      sessionStorage.setItem("dispatcherName", name);
+      sessionStorage.setItem("dispatcherRole", role);
+      sessionStorage.setItem("dispatcherRoom", roomCode);
+      sessionStorage.setItem("dispatcherCreated", "true");
 
-      const peerId = "dispatcher-lobby-" + roomCode;
-
-      try {
-        const peer = new Peer(peerId, { host: "0.peerjs.com", secure: true, port: 443 });
-
-        peer.on("open", () => {
-          sessionStorage.setItem("dispatcherName", name);
-          sessionStorage.setItem("dispatcherRole", role);
-          sessionStorage.setItem("dispatcherRoom", roomCode);
-          sessionStorage.setItem("dispatcherCreated", "true");
-          status.textContent = "Room created. Opening the game...";
-          window.location.href = "./game.html?mode=create&room=" + encodeURIComponent(roomCode);
-        });
-
-        peer.on("error", (error) => {
-          button.disabled = false;
-          if (error && error.type === "unavailable-id") {
-            status.textContent = "That room code is already in use. Generate a new code and try again.";
-          } else {
-            status.textContent = "Could not create the room. Please try again.";
-          }
-        });
-      } catch (error) {
-        button.disabled = false;
-        status.textContent = "Could not start the room service.";
-      }
+      status.textContent = "Opening the live room...";
+      window.location.href = "./game.html?mode=create&room=" + encodeURIComponent(roomCode);
     });
   </script>
 </body>
