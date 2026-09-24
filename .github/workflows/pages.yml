@@ -27,7 +27,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p site
-          cp index.html site/
+          cp *.html site/
           cp style.css site/
           cp game.js site/
           cp game.config.js site/ 2>/dev/null || true
