@@ -158,11 +158,26 @@ function setStatus() {
   voiceStatus.textContent = localStream ? `Voice: ${isMuted ? "Muted" : "Live"}` : soloAiActive ? "Voice: AI Ready" : "Voice: Off";
 }
 
+function renderScoreStatus() {
+  const el = $("scoreStatus");
+  if (el) el.textContent = "Score: " + scoreState.score + " | Rank: " + rankForScore(scoreState.score);
+}
+
+function renderIncomingCall(call) {
+  const card = $("incomingCallCard");
+  const text = $("incomingCallText");
+  if (!card || !text) return;
+  if (!call) { card.classList.add("hidden"); return; }
+  card.classList.remove("hidden");
+  text.textContent = call.title + " — " + call.location + ". " + call.detail;
+}
+
 function scoreAction(points, label) {
   scoreState.score = Math.max(0, scoreState.score + points);
   if (points > 0) scoreState.correctActions += 1;
   if (points < 0) scoreState.mistakes += 1;
   logFeed("Score", "System", label + " " + (points >= 0 ? "+" : "") + points + " points. Score: " + scoreState.score);
+  renderScoreStatus();
 }
 
 function rankForScore(score) {
@@ -178,6 +193,7 @@ function nextRandomCall(force = false) {
   const call = RANDOM_CALLS[Math.floor(Math.random() * RANDOM_CALLS.length)];
   scoreState.currentCall = call;
   scoreState.callStartedAt = Date.now();
+  renderIncomingCall(call);
   mapState.severity = call.severity;
   mapState.supportTag = call.target;
   randomHazards(call.severity);
@@ -203,6 +219,7 @@ function resolveRandomCall(actionTag) {
     logFeed("Call Warning", "System", "That response did not match the emergency. Match the support to the incident.");
   }
   scoreState.currentCall = null;
+  renderIncomingCall(null);
   setTimeout(() => nextRandomCall(), 1800);
 }
 
@@ -1382,6 +1399,7 @@ setupVoiceNotes();
 configureRoleUI();
 renderResponseHints(["Wait for dispatch support to see auto suggestions."]);
 updateMissionStatus();
+renderScoreStatus();
 setPanicLevel(40);
 setStatus();
 logFeed("System", "Game", "Choose your role and room code, then create or join the room.");
