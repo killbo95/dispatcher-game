@@ -1,0 +1,11 @@
+name = "class-wars-room"
+main = "worker.js"
+compatibility_date = "2026-10-21"
+
+[[durable_objects.bindings]]
+name = "GAME_ROOMS"
+class_name = "GameRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GameRoom"]
