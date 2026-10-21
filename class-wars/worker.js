@@ -83,7 +83,7 @@ export class GameRoom {
       const x = Number(data.x), y = Number(data.y);
       if (!Number.isFinite(x) || !Number.isFinite(y)) return;
       const dx = x-p.x, dy = y-p.y, distance = Math.hypot(dx,dy);
-      const allowed = Math.min(42, Math.max(10, (now-p.lastMove)*0.075));
+      const allowed = Math.min(42, Math.max(10, (now-p.lastMove)*0.16));
       if (distance > allowed) {
         const scale = allowed / distance;
         p.x = clamp(p.x + dx*scale, 8, W-8);
